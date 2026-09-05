@@ -1,5 +1,8 @@
 import { useCallback } from "react";
 
+import { useLibraryStore } from "@/modules/library/stores/library.store";
+import { showToast } from "@/shared/stores/toast.store";
+
 import { recorderService } from "../services/recorder.service";
 import { useRecorderStore } from "../stores/recorder.store";
 import { useRecordingClock } from "./useRecordingClock";
@@ -15,6 +18,7 @@ export function useRecorder() {
   const run = useCallback(async (action: () => Promise<unknown>) => {
     try {
       await action();
+      return true;
     } catch (caught) {
       const current = useRecorderStore.getState();
       current.hydrate({
@@ -23,6 +27,7 @@ export function useRecorder() {
         durationMs: current.durationMs,
         error: caught instanceof Error ? caught.message : String(caught),
       });
+      return false;
     }
   }, []);
 
@@ -38,10 +43,16 @@ export function useRecorder() {
     viewingSession,
     recents,
     durationMs,
-    start: () => run(recorderService.start),
+    start: () => run(() => recorderService.start(useLibraryStore.getState().destinationFolderId)),
     pause: () => run(recorderService.pause),
     resume: () => run(recorderService.resume),
-    stop: () => run(recorderService.stop),
+    stop: async () => {
+      const ok = await run(recorderService.stop);
+      if (!ok) {
+        showToast("error", "Recording could not be saved.");
+      }
+      return ok;
+    },
     dismiss: async () => {
       useRecorderStore.getState().setViewingSession(null);
       await run(recorderService.dismiss);

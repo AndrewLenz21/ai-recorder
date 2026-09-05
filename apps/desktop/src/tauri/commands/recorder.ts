@@ -2,7 +2,10 @@ import type { RecorderStateDto, RecordingSession, SessionSummary } from "@/tauri
 import { invokeCommand } from "./invoke";
 
 export const recorderCommands = {
-  start: () => invokeCommand<RecorderStateDto>("recorder_start"),
+  start: (folderId?: string | null) =>
+    invokeCommand<RecorderStateDto>("recorder_start", { folderId: folderId ?? null }),
+  setDestination: (folderId: string | null) =>
+    invokeCommand<RecorderStateDto>("recorder_set_destination", { folderId }),
   pause: () => invokeCommand<RecorderStateDto>("recorder_pause"),
   resume: () => invokeCommand<RecorderStateDto>("recorder_resume"),
   stop: () => invokeCommand<RecorderStateDto>("recorder_stop"),

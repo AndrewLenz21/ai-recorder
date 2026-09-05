@@ -9,8 +9,18 @@ use crate::storage;
 pub fn recorder_start(
     app: AppHandle,
     state: State<AppState>,
+    folder_id: Option<String>,
 ) -> Result<RecorderStateDto, AppError> {
-    state.recorder.start(&app)
+    state.recorder.start(&app, folder_id)
+}
+
+#[tauri::command]
+pub fn recorder_set_destination(
+    app: AppHandle,
+    state: State<AppState>,
+    folder_id: Option<String>,
+) -> Result<RecorderStateDto, AppError> {
+    state.recorder.set_folder(&app, folder_id)
 }
 
 #[tauri::command]

@@ -17,6 +17,10 @@ pub enum RecordingStatus {
 #[serde(rename_all = "camelCase")]
 pub struct RecordingSession {
     pub id: String,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub folder_id: Option<String>,
     pub started_at: String,
     pub ended_at: Option<String>,
     pub duration_ms: u64,
@@ -31,17 +35,24 @@ pub struct RecordingSession {
 #[serde(rename_all = "camelCase")]
 pub struct SessionSummary {
     pub id: String,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub folder_id: Option<String>,
     pub started_at: String,
     pub ended_at: Option<String>,
     pub duration_ms: u64,
     pub screenshot_count: usize,
+    pub file_size_bytes: u64,
     pub audio_file: Option<String>,
 }
 
-impl From<&RecordingSession> for SessionSummary {
-    fn from(session: &RecordingSession) -> Self {
+impl SessionSummary {
+    pub fn from_session(session: &RecordingSession, file_size_bytes: u64) -> Self {
         Self {
             id: session.id.clone(),
+            title: session.title.clone(),
+            folder_id: session.folder_id.clone(),
             started_at: session.started_at.clone(),
             ended_at: session.ended_at.clone(),
             duration_ms: session.duration_ms,
@@ -50,6 +61,7 @@ impl From<&RecordingSession> for SessionSummary {
                 .iter()
                 .filter(|event| matches!(event, RecordingEvent::ScreenCapture { .. }))
                 .count(),
+            file_size_bytes,
             audio_file: session.audio_file.clone(),
         }
     }

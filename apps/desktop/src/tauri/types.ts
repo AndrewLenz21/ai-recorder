@@ -47,6 +47,8 @@ export type RecordingEvent =
 
 export type RecordingSession = {
   id: string;
+  title?: string | null;
+  folderId?: string | null;
   startedAt: string;
   endedAt: string | null;
   durationMs: number;
@@ -59,11 +61,59 @@ export type RecordingSession = {
 
 export type SessionSummary = {
   id: string;
+  title?: string | null;
+  folderId?: string | null;
   startedAt: string;
   endedAt: string | null;
   durationMs: number;
   screenshotCount: number;
+  fileSizeBytes: number;
   audioFile: string | null;
+};
+
+export type FolderIcon =
+  | "folder"
+  | "briefcase"
+  | "microphone"
+  | "lightbulb"
+  | "book"
+  | "code"
+  | "people"
+  | "video"
+  | "graduation"
+  | "star"
+  | "archive";
+
+export type FolderColor =
+  | "blue"
+  | "purple"
+  | "green"
+  | "orange"
+  | "red"
+  | "pink"
+  | "teal"
+  | "gray";
+
+export type RecordingFolder = {
+  id: string;
+  name: string;
+  icon: FolderIcon;
+  color: FolderColor;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LibrarySnapshot = {
+  folders: RecordingFolder[];
+  defaultFolderId?: string | null;
+};
+
+export type StorageStats = {
+  recordingCount: number;
+  durationMs: number;
+  audioBytes: number;
+  screenshotBytes: number;
+  usedBytes: number;
 };
 
 export type RecorderStateDto = {

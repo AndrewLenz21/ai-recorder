@@ -1,5 +1,6 @@
 mod commands;
 mod error;
+mod library;
 mod meeting_detection;
 mod permissions;
 mod recorder;
@@ -24,6 +25,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::recorder::recorder_start,
+            commands::recorder::recorder_set_destination,
             commands::recorder::recorder_pause,
             commands::recorder::recorder_resume,
             commands::recorder::recorder_stop,
@@ -31,6 +33,15 @@ pub fn run() {
             commands::recorder::recorder_state,
             commands::recorder::recorder_list_sessions,
             commands::recorder::recorder_get_session,
+            commands::library::library_get,
+            commands::library::library_storage_stats,
+            commands::library::library_create_folder,
+            commands::library::library_update_folder,
+            commands::library::library_delete_folder,
+            commands::library::library_set_default_folder,
+            commands::library::recorder_rename_session,
+            commands::library::recorder_move_session,
+            commands::library::recorder_delete_session,
             commands::screen_capture::screen_capture_take,
             commands::permissions::permissions_status,
             commands::permissions::permissions_request,

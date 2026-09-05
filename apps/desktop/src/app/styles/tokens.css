@@ -161,7 +161,10 @@ html.theme-transitioning .app-shell,
 html.theme-transitioning .widget,
 html.theme-transitioning .btn,
 html.theme-transitioning .theme-toggle-button,
-html.theme-transitioning .theme-menu {
+html.theme-transitioning .theme-menu,
+html.theme-transitioning .library-row,
+html.theme-transitioning .folder-mark,
+html.theme-transitioning .folder-editor {
   transition:
     background-color var(--theme-duration) var(--ease),
     color var(--theme-duration) var(--ease),

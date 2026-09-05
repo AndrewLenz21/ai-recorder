@@ -1,5 +1,6 @@
 import { Button } from "@/shared/components/Button";
 import { PauseIcon, PlayIcon, StopIcon } from "@/shared/components/icons";
+import { DestinationPicker } from "@/modules/library/components/DestinationPicker";
 import { CaptureButton, CaptureFlash } from "@/modules/screen-capture";
 import { MeetingHint } from "@/modules/meeting-detection";
 import { TimelineList } from "@/modules/timeline";
@@ -37,6 +38,7 @@ export function RecorderSession() {
           Stop
         </Button>
       </div>
+      <DestinationPicker compact />
       {error ? <p className="error-text">{error}</p> : null}
       <MeetingHint compact />
       <TimelineList compact />

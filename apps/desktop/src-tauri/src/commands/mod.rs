@@ -1,3 +1,4 @@
+pub mod library;
 pub mod meeting_detection;
 pub mod permissions;
 pub mod recorder;

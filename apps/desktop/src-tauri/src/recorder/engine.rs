@@ -41,7 +41,11 @@ impl RecorderEngine {
         snapshot_from(&inner)
     }
 
-    pub fn start(&self, app: &AppHandle) -> Result<RecorderStateDto, AppError> {
+    pub fn start(
+        &self,
+        app: &AppHandle,
+        folder_id: Option<String>,
+    ) -> Result<RecorderStateDto, AppError> {
         {
             let inner = self.inner.lock().unwrap_or_else(|error| error.into_inner());
             if matches!(
@@ -76,6 +80,8 @@ impl RecorderEngine {
         let started_at = now_rfc3339();
         let mut session = RecordingSession {
             id: session_id.clone(),
+            title: None,
+            folder_id: resolve_folder_id(app, folder_id)?,
             started_at: started_at.clone(),
             ended_at: None,
             duration_ms: 0,
@@ -103,6 +109,26 @@ impl RecorderEngine {
         }
 
         let _ = windows::show_widget(app);
+        let state = self.snapshot();
+        emit_state(app, &state);
+        Ok(state)
+    }
+
+    pub fn set_folder(
+        &self,
+        app: &AppHandle,
+        folder_id: Option<String>,
+    ) -> Result<RecorderStateDto, AppError> {
+        let folder_id = resolve_folder_id(app, folder_id)?;
+        {
+            let mut inner = self.inner.lock().unwrap_or_else(|error| error.into_inner());
+            let session = inner
+                .session
+                .as_mut()
+                .ok_or_else(|| AppError::msg("No active recording."))?;
+            session.folder_id = folder_id;
+            storage::persist_session(session)?;
+        }
         let state = self.snapshot();
         emit_state(app, &state);
         Ok(state)
@@ -315,4 +341,16 @@ fn emit_state(app: &AppHandle, state: &RecorderStateDto) {
 
 fn path_to_string(path: &PathBuf) -> String {
     path.to_string_lossy().to_string()
+}
+
+fn resolve_folder_id(app: &AppHandle, folder_id: Option<String>) -> Result<Option<String>, AppError> {
+    let Some(folder_id) = folder_id else {
+        return Ok(None);
+    };
+    let library = storage::read_library(app)?;
+    if library.folders.iter().any(|folder| folder.id == folder_id) {
+        Ok(Some(folder_id))
+    } else {
+        Ok(None)
+    }
 }

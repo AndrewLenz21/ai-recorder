@@ -21,6 +21,31 @@ export function formatTimestamp(ms: number): string {
   return `${pad(minutes)}:${pad(seconds)}`;
 }
 
+export function formatSpan(ms: number): string {
+  const totalMinutes = Math.max(0, Math.round(ms / 60_000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) {
+    return `${minutes}m`;
+  }
+  return `${hours}h ${minutes}m`;
+}
+
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = bytes / 1024;
+  let index = 0;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  const digits = value >= 10 ? 0 : 1;
+  return `${value.toFixed(digits)} ${units[index] ?? "KB"}`;
+}
+
 export function formatDateTime(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) {
