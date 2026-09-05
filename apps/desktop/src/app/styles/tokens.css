@@ -1,0 +1,177 @@
+@property --bg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #f3f3f5;
+}
+
+@property --bg-elevated {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+@property --text {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1d1d1f;
+}
+
+@property --text-secondary {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #6e6e73;
+}
+
+@property --border {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #e5e5ea;
+}
+
+@property --btn {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1d1d1f;
+}
+
+@property --btn-text {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #f5f5f7;
+}
+
+@property --record {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1d1d1f;
+}
+
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --radius: 14px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration: 180ms;
+  --theme-duration: 280ms;
+  --record: oklch(0.205 0 0);
+  --record-soft: oklch(0.205 0 0 / 0.12);
+  --shadow: 0 10px 40px oklch(0 0 0 / 0.08);
+}
+
+html.light {
+  color-scheme: light;
+  --bg: oklch(0.96 0 0);
+  --bg-elevated: oklch(1 0 0 / 0.78);
+  --text: oklch(0.145 0 0);
+  --text-secondary: oklch(0.556 0 0);
+  --border: oklch(0.922 0 0);
+  --btn: oklch(0.205 0 0);
+  --btn-text: oklch(0.985 0 0);
+  --record: oklch(0.205 0 0);
+  --record-soft: oklch(0.205 0 0 / 0.12);
+  --shadow: 0 10px 40px oklch(0 0 0 / 0.08);
+}
+
+html.dark {
+  color-scheme: dark;
+  --bg: oklch(0.145 0 0);
+  --bg-elevated: oklch(0.205 0 0 / 0.82);
+  --text: oklch(0.985 0 0);
+  --text-secondary: oklch(0.708 0 0);
+  --border: oklch(1 0 0 / 0.1);
+  --btn: oklch(0.922 0 0);
+  --btn-text: oklch(0.205 0 0);
+  --record: oklch(0.922 0 0);
+  --record-soft: oklch(0.922 0 0 / 0.18);
+  --shadow: 0 12px 40px oklch(0 0 0 / 0.35);
+}
+
+html.atom {
+  color-scheme: dark;
+  --bg: oklch(0.27 0.03 260);
+  --bg-elevated: oklch(0.24 0.03 260 / 0.88);
+  --text: oklch(0.79 0.03 260);
+  --text-secondary: oklch(0.6 0.03 260);
+  --border: oklch(0.985 0 0 / 0.15);
+  --btn: oklch(0.73 0.17 245);
+  --btn-text: oklch(0.27 0.03 260);
+  --record: oklch(0.73 0.17 245);
+  --record-soft: oklch(0.73 0.17 245 / 0.2);
+  --shadow: 0 12px 40px oklch(0.2 0.03 260 / 0.4);
+}
+
+html.sky {
+  color-scheme: light;
+  --bg: oklch(0.96 0.015 235);
+  --bg-elevated: oklch(1 0 0 / 0.9);
+  --text: oklch(0.25 0.06 250);
+  --text-secondary: oklch(0.5 0.04 250);
+  --border: oklch(0.9 0.02 235);
+  --btn: oklch(0.45 0.14 255);
+  --btn-text: oklch(0.98 0.01 235);
+  --record: oklch(0.45 0.14 255);
+  --record-soft: oklch(0.45 0.14 255 / 0.16);
+  --shadow: 0 10px 40px oklch(0.45 0.14 255 / 0.12);
+}
+
+html.ocean {
+  color-scheme: light;
+  --bg: oklch(0.93 0.045 195);
+  --bg-elevated: oklch(0.985 0.015 195 / 0.95);
+  --text: oklch(0.25 0.08 200);
+  --text-secondary: oklch(0.4 0.08 200);
+  --border: oklch(0.84 0.07 195);
+  --btn: oklch(0.4 0.18 195);
+  --btn-text: oklch(0.98 0.02 195);
+  --record: oklch(0.4 0.18 195);
+  --record-soft: oklch(0.4 0.18 195 / 0.16);
+  --shadow: 0 10px 40px oklch(0.4 0.18 195 / 0.14);
+}
+
+html.pink {
+  color-scheme: light;
+  --bg: oklch(0.965 0.018 8);
+  --bg-elevated: oklch(0.985 0.012 10 / 0.92);
+  --text: oklch(0.29 0.025 350);
+  --text-secondary: oklch(0.53 0.035 350);
+  --border: oklch(0.845 0.032 355);
+  --btn: oklch(0.69 0.11 352);
+  --btn-text: oklch(0.99 0.008 10);
+  --record: oklch(0.69 0.11 352);
+  --record-soft: oklch(0.69 0.11 352 / 0.16);
+  --shadow: 0 10px 40px oklch(0.69 0.11 352 / 0.14);
+}
+
+html.pressroom {
+  color-scheme: light;
+  --bg: oklch(0.955 0.025 88);
+  --bg-elevated: oklch(0.985 0.018 86 / 0.94);
+  --text: oklch(0.24 0.025 260);
+  --text-secondary: oklch(0.5 0.04 260);
+  --border: oklch(0.84 0.035 85);
+  --btn: oklch(0.48 0.17 255);
+  --btn-text: oklch(0.98 0.018 88);
+  --record: oklch(0.48 0.17 255);
+  --record-soft: oklch(0.48 0.17 255 / 0.16);
+  --shadow: 0 10px 40px oklch(0.48 0.17 255 / 0.12);
+}
+
+html.theme-transitioning,
+html.theme-transitioning body,
+html.theme-transitioning .app-shell,
+html.theme-transitioning .widget,
+html.theme-transitioning .btn,
+html.theme-transitioning .theme-toggle-button,
+html.theme-transitioning .theme-menu {
+  transition:
+    background-color var(--theme-duration) var(--ease),
+    color var(--theme-duration) var(--ease),
+    border-color var(--theme-duration) var(--ease),
+    box-shadow var(--theme-duration) var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration: 1ms;
+    --theme-duration: 1ms;
+  }
+}
