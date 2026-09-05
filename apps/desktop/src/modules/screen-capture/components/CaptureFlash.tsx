@@ -19,14 +19,14 @@ export function CaptureFlash() {
   }, [flashUntil, lastCapture]);
 
   if (!visible || !lastCapture) {
-    return <div className="capture-veil" aria-hidden="true" />;
+    return <div className="pointer-events-none fixed inset-0 bg-white opacity-0" aria-hidden="true" />;
   }
 
   return (
     <>
-      <div className="capture-veil is-on" aria-hidden="true" />
-      <div className="capture-thumb">
-        <img src={convertFileSrc(lastCapture.imagePath)} alt="" />
+      <div className="pointer-events-none fixed inset-0 bg-white opacity-[0.18]" aria-hidden="true" />
+      <div className="fixed right-7 bottom-7 w-[132px] overflow-hidden rounded-xl shadow-app motion-safe:animate-[thumb-in_220ms_var(--ease)]">
+        <img className="h-[84px] w-[132px] object-cover" src={convertFileSrc(lastCapture.imagePath)} alt="" />
       </div>
     </>
   );

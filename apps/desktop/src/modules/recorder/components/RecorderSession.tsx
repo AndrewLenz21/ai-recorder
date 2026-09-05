@@ -40,7 +40,7 @@ export function RecorderSession() {
       </div>
       <DestinationPicker compact />
       {error ? <p className="error-text">{error}</p> : null}
-      <MeetingHint compact />
+      <MeetingHint />
       <TimelineList compact />
     </section>
   );

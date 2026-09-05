@@ -1,0 +1,113 @@
+@property --bg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #f3f3f5;
+}
+
+@property --bg-elevated {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+@property --text {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1d1d1f;
+}
+
+@property --text-secondary {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #6e6e73;
+}
+
+@property --border {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #e5e5ea;
+}
+
+@property --btn {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1d1d1f;
+}
+
+@property --btn-text {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #f5f5f7;
+}
+
+@property --record {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1d1d1f;
+}
+
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --radius: 14px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration: 180ms;
+  --theme-duration: 280ms;
+  --bg: oklch(0.96 0 0);
+  --bg-elevated: oklch(1 0 0 / 0.78);
+  --text: oklch(0.145 0 0);
+  --text-secondary: oklch(0.556 0 0);
+  --border: oklch(0.922 0 0);
+  --btn: oklch(0.205 0 0);
+  --btn-text: oklch(0.985 0 0);
+  --record: oklch(0.205 0 0);
+  --record-soft: oklch(0.205 0 0 / 0.12);
+  --shadow: 0 10px 40px oklch(0 0 0 / 0.08);
+}
+
+@custom-variant light (&:is(.light *));
+@custom-variant dark (&:is(.dark *));
+@custom-variant atom (&:is(.atom *));
+@custom-variant sky (&:is(.sky *));
+@custom-variant ocean (&:is(.ocean *));
+@custom-variant pink (&:is(.pink *));
+@custom-variant pressroom (&:is(.pressroom *));
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-surface: var(--bg-elevated);
+  --color-foreground: var(--text);
+  --color-muted-foreground: var(--text-secondary);
+  --color-border: var(--border);
+  --color-control: var(--btn);
+  --color-control-foreground: var(--btn-text);
+  --color-record: var(--record);
+  --color-record-soft: var(--record-soft);
+  --font-sans: var(--font);
+  --radius-app: var(--radius);
+  --ease-app: var(--ease);
+  --shadow-app: var(--shadow);
+}
+
+html.theme-transitioning,
+html.theme-transitioning body,
+html.theme-transitioning .app-shell,
+html.theme-transitioning .widget,
+html.theme-transitioning .btn,
+html.theme-transitioning .theme-toggle-button,
+html.theme-transitioning .theme-menu,
+html.theme-transitioning .library-row,
+html.theme-transitioning .folder-mark,
+html.theme-transitioning .folder-editor {
+  transition:
+    background-color var(--theme-duration) var(--ease),
+    color var(--theme-duration) var(--ease),
+    border-color var(--theme-duration) var(--ease),
+    box-shadow var(--theme-duration) var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration: 1ms;
+    --theme-duration: 1ms;
+  }
+}

@@ -81,14 +81,14 @@ export function useLibrary() {
   }, [recordings]);
 
   const run = useCallback(
-    async (action: () => Promise<unknown>) => {
+    async <T>(action: () => Promise<T>): Promise<T | null> => {
       try {
-        await action();
+        const result = await action();
         await refresh();
-        return true;
+        return result;
       } catch (caught) {
         useLibraryStore.getState().setError(caught instanceof Error ? caught.message : String(caught));
-        return false;
+        return null;
       }
     },
     [refresh],

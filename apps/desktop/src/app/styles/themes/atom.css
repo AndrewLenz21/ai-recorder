@@ -1,0 +1,13 @@
+html.atom {
+  color-scheme: dark;
+  --bg: oklch(0.27 0.03 260);
+  --bg-elevated: oklch(0.24 0.03 260 / 0.88);
+  --text: oklch(0.79 0.03 260);
+  --text-secondary: oklch(0.6 0.03 260);
+  --border: oklch(0.985 0 0 / 0.15);
+  --btn: oklch(0.73 0.17 245);
+  --btn-text: oklch(0.27 0.03 260);
+  --record: oklch(0.73 0.17 245);
+  --record-soft: oklch(0.73 0.17 245 / 0.2);
+  --shadow: 0 12px 40px oklch(0.2 0.03 260 / 0.4);
+}

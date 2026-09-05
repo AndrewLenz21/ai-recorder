@@ -152,10 +152,10 @@ export function RecordingOptions({ recording }: Props) {
         open={panel === "move"}
         title="Move to"
         subtitle="Choose where this recording should be saved."
-        className="is-picker"
+        size="picker"
         onClose={() => setPanel(null)}
       >
-        <div className="destination-picker-list">
+        <div className="flex max-h-[min(360px,50vh)] flex-col gap-0.5 overflow-y-auto">
           <FolderDestinationRow
             title="All Recordings"
             subtitle="Default library"

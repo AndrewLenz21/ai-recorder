@@ -28,9 +28,9 @@ export function StorageView() {
 
   return (
     <section className="library library-storage">
-      <header className="storage-header">
+      <header className="flex flex-col items-center gap-2.5 px-0 pt-5 pb-2 text-center">
         <p className="eyebrow">Local Storage</p>
-        <h1>{formatBytes(used)}</h1>
+        <h1 className="text-[clamp(28px,5vw,40px)]">{formatBytes(used)}</h1>
         <p className="dashboard-summary">
           {count} recording{count === 1 ? "" : "s"}
           {count > 0 ? ` · ${formatSpan(duration)}` : ""}
@@ -38,14 +38,14 @@ export function StorageView() {
       </header>
       {error ? <p className="error-text">{error}</p> : null}
       {stats ? (
-        <dl className="storage-breakdown">
-          <div>
-            <dt>Audio</dt>
-            <dd>{formatBytes(stats.audioBytes)}</dd>
+        <dl className="flex flex-col">
+          <div className="flex justify-between gap-4 border-b border-border py-3">
+            <dt className="text-[13px] text-muted-foreground">Audio</dt>
+            <dd className="m-0 text-[13px] tabular-nums">{formatBytes(stats.audioBytes)}</dd>
           </div>
-          <div>
-            <dt>Screenshots</dt>
-            <dd>{formatBytes(stats.screenshotBytes)}</dd>
+          <div className="flex justify-between gap-4 border-b border-border py-3">
+            <dt className="text-[13px] text-muted-foreground">Screenshots</dt>
+            <dd className="m-0 text-[13px] tabular-nums">{formatBytes(stats.screenshotBytes)}</dd>
           </div>
         </dl>
       ) : null}

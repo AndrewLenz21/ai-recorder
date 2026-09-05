@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { Button } from "@/shared/components/Button";
 import type { FolderColor, FolderIcon, RecordingFolder } from "@/tauri/types";
@@ -9,7 +9,7 @@ import { FolderGlyph } from "./FolderGlyph";
 type Props = {
   folder?: RecordingFolder;
   variant?: "inline" | "dialog";
-  onSave: (name: string, icon: FolderIcon, color: FolderColor) => Promise<void>;
+  onSave: (name: string, icon: FolderIcon, color: FolderColor, setAsDefault: boolean) => Promise<void>;
   onDelete?: () => Promise<void>;
   onClose: () => void;
 };
@@ -18,12 +18,15 @@ export function FolderEditor({ folder, variant = "inline", onSave, onDelete, onC
   const [name, setName] = useState(folder?.name ?? "");
   const [icon, setIcon] = useState<FolderIcon>(folder?.icon ?? "folder");
   const [color, setColor] = useState<FolderColor>(folder?.color ?? "blue");
+  const [setAsDefault, setSetAsDefault] = useState(false);
   const [busy, setBusy] = useState(false);
+  const defaultFolderId = useId();
+  const defaultFolderHelpId = useId();
 
   const submit = async () => {
     setBusy(true);
     try {
-      await onSave(name, icon, color);
+      await onSave(name, icon, color, setAsDefault);
     } finally {
       setBusy(false);
     }
@@ -90,7 +93,7 @@ export function FolderEditor({ folder, variant = "inline", onSave, onDelete, onC
         </div>
       </div>
 
-      <div className="folder-editor-actions">
+      <div className={`folder-editor-actions ${!folder && variant === "dialog" ? "is-create" : ""}`}>
         {onDelete ? (
           <Button
             type="button"
@@ -103,12 +106,45 @@ export function FolderEditor({ folder, variant = "inline", onSave, onDelete, onC
             Delete
           </Button>
         ) : null}
-        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary" size="sm" disabled={busy || name.trim().length === 0}>
-          {folder ? "Save" : "Create"}
-        </Button>
+        {!folder && variant === "dialog" ? (
+          <div className="flex translate-y-[2px] items-center gap-2 text-[13px] text-foreground">
+            <label className="flex cursor-pointer items-center gap-2" htmlFor={defaultFolderId}>
+              <input
+                id={defaultFolderId}
+                type="checkbox"
+                checked={setAsDefault}
+                className="size-4 accent-control"
+                onChange={(event) => setSetAsDefault(event.target.checked)}
+              />
+              <span className="font-medium">Set as default</span>
+            </label>
+            <span className="group relative inline-flex">
+              <button
+                type="button"
+                className="inline-flex size-4 items-center justify-center rounded-full border border-border text-[10px] font-semibold text-muted-foreground hover:border-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                aria-label="About the default folder"
+                aria-describedby={defaultFolderHelpId}
+              >
+                ?
+              </button>
+              <span
+                id={defaultFolderHelpId}
+                role="tooltip"
+                className="pointer-events-none absolute left-0 bottom-[calc(100%+8px)] z-10 w-52 rounded-lg border border-border bg-surface px-2.5 py-2 text-xs leading-[1.35] text-muted-foreground opacity-0 shadow-app transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+              >
+                New recordings will use this folder by default.
+              </span>
+            </span>
+          </div>
+        ) : null}
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" size="sm" disabled={busy || name.trim().length === 0}>
+            {folder ? "Save" : "Create"}
+          </Button>
+        </div>
       </div>
     </form>
   );

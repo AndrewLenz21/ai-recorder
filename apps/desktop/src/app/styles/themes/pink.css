@@ -1,0 +1,13 @@
+html.pink {
+  color-scheme: light;
+  --bg: oklch(0.965 0.018 8);
+  --bg-elevated: oklch(0.985 0.012 10 / 0.92);
+  --text: oklch(0.29 0.025 350);
+  --text-secondary: oklch(0.53 0.035 350);
+  --border: oklch(0.845 0.032 355);
+  --btn: oklch(0.69 0.11 352);
+  --btn-text: oklch(0.99 0.008 10);
+  --record: oklch(0.69 0.11 352);
+  --record-soft: oklch(0.69 0.11 352 / 0.16);
+  --shadow: 0 10px 40px oklch(0.69 0.11 352 / 0.14);
+}

@@ -9,7 +9,6 @@ import {
   ClockIcon,
   PlusIcon,
   RecordIcon,
-  StarIcon,
 } from "@/shared/components/icons";
 import { formatBytes, formatDateTime, formatSpan, formatTimestamp } from "@/shared/lib/time";
 import { useRecorder } from "@/modules/recorder";
@@ -22,6 +21,10 @@ import { FolderEditor } from "./FolderEditor";
 import { FolderGlyph } from "./FolderGlyph";
 import { FolderOptions } from "./FolderOptions";
 import { RecordingOptions } from "./RecordingOptions";
+
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (update: () => Promise<unknown>) => void;
+};
 
 export function LibraryHome() {
   const { start, openSession, error: recorderError } = useRecorder();
@@ -46,8 +49,12 @@ export function LibraryHome() {
     return { durationMs, usedBytes };
   }, [recordings]);
 
-  const saveCreate = async (name: string, icon: FolderIcon, color: FolderColor) => {
-    if (await createFolder(name, icon, color)) {
+  const saveCreate = async (name: string, icon: FolderIcon, color: FolderColor, setAsDefault: boolean) => {
+    const created = await createFolder(name, icon, color);
+    if (created) {
+      if (setAsDefault) {
+        await setDefaultFolder(created.id);
+      }
       setCreating(false);
     }
   };
@@ -68,6 +75,24 @@ export function LibraryHome() {
   ]
     .filter(Boolean)
     .join(" · ");
+
+  const orderedFolders = useMemo(
+    () => [...folders].sort((left, right) => Number(right.id === defaultFolderId) - Number(left.id === defaultFolderId)),
+    [defaultFolderId, folders],
+  );
+
+  const setDefaultWithTransition = (folderId: string) => {
+    const update = () => setDefaultFolder(folderId);
+    const documentWithTransitions = document as ViewTransitionDocument;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (documentWithTransitions.startViewTransition && !reduceMotion) {
+      documentWithTransitions.startViewTransition(update);
+      return;
+    }
+
+    void update();
+  };
 
   return (
     <section className="library library-home">
@@ -114,11 +139,15 @@ export function LibraryHome() {
             <p className="muted">Create a folder to keep recordings organized.</p>
           ) : (
             <div className="folder-column-list">
-              {folders.map((folder) => {
+              {orderedFolders.map((folder) => {
                 const count = folderCounts.get(folder.id) ?? 0;
                 const isDefault = folder.id === defaultFolderId;
                 return (
-                  <div key={folder.id} className="folder-row">
+                  <div
+                    key={folder.id}
+                    className="folder-row"
+                    style={{ viewTransitionName: `folder-${folder.id}` }}
+                  >
                     <button
                       type="button"
                       className="folder-cell"
@@ -131,8 +160,12 @@ export function LibraryHome() {
                         <strong>
                           {folder.name}
                           {isDefault ? (
-                            <span className="folder-star" title="Default folder" aria-label="Default folder">
-                              <StarIcon size={11} />
+                            <span
+                              className={`is-${folder.color} ml-2 inline-flex h-5 items-center rounded-full border border-[color:color-mix(in_oklch,var(--folder-accent),transparent_72%)] bg-[var(--folder-soft)] px-2 text-[11px] leading-none font-medium tracking-[-0.01em] text-[var(--folder-accent)]`}
+                              title="Default folder"
+                              aria-label="Default folder"
+                            >
+                              Default
                             </span>
                           ) : null}
                         </strong>
@@ -143,7 +176,7 @@ export function LibraryHome() {
                       folder={folder}
                       isDefault={isDefault}
                       onEdit={() => setEditing(folder)}
-                      onSetDefault={() => void setDefaultFolder(folder.id)}
+                      onSetDefault={() => setDefaultWithTransition(folder.id)}
                     />
                   </div>
                 );

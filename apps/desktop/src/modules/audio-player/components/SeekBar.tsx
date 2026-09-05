@@ -26,7 +26,7 @@ export function SeekBar() {
   return (
     <div
       ref={trackRef}
-      className="seek-bar"
+      className="relative h-[22px] cursor-pointer"
       role="slider"
       tabIndex={0}
       aria-label="Seek"
@@ -55,9 +55,15 @@ export function SeekBar() {
         }
       }}
     >
-      <span className="seek-track" />
-      <span className="seek-fill" style={{ width: `${progress * 100}%` }} />
-      <span className="seek-thumb" style={{ left: `${progress * 100}%` }} />
+      <span className="absolute top-[9px] right-0 left-0 h-1 rounded-full bg-border" />
+      <span
+        className="absolute top-[9px] left-0 h-1 rounded-full bg-control"
+        style={{ width: `${progress * 100}%` }}
+      />
+      <span
+        className="absolute top-1.5 size-2.5 -translate-x-1/2 rounded-full bg-control"
+        style={{ left: `${progress * 100}%` }}
+      />
     </div>
   );
 }

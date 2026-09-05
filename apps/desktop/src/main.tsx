@@ -6,8 +6,7 @@ import { App } from "@/app/App";
 import { hydrateTheme } from "@/app/theme/useTheme";
 import { FloatingWidget } from "@/modules/floating-widget";
 
-import "@/app/styles/tokens.css";
-import "@/app/styles/global.css";
+import "@/app/styles/index.css";
 
 hydrateTheme();
 

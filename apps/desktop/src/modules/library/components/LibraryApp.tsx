@@ -18,7 +18,7 @@ export function LibraryApp() {
           : "root";
 
   return (
-    <div className={`library-shell ${nested ? "is-nested" : "is-root"}`}>
+    <div className="flex flex-col gap-7">
       {nested ? null : <LibrarySwitch />}
       <div className="library-pane" key={pane}>
         {route.name === "folder" ? (

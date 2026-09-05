@@ -1,0 +1,13 @@
+html.pressroom {
+  color-scheme: light;
+  --bg: oklch(0.955 0.025 88);
+  --bg-elevated: oklch(0.985 0.018 86 / 0.94);
+  --text: oklch(0.24 0.025 260);
+  --text-secondary: oklch(0.5 0.04 260);
+  --border: oklch(0.84 0.035 85);
+  --btn: oklch(0.48 0.17 255);
+  --btn-text: oklch(0.98 0.018 88);
+  --record: oklch(0.48 0.17 255);
+  --record-soft: oklch(0.48 0.17 255 / 0.16);
+  --shadow: 0 10px 40px oklch(0.48 0.17 255 / 0.12);
+}

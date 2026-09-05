@@ -1,10 +1,6 @@
 import { useMeetingDetection } from "../hooks/useMeetingDetection";
 
-type Props = {
-  compact?: boolean;
-};
-
-export function MeetingHint({ compact = false }: Props) {
+export function MeetingHint() {
   const snapshot = useMeetingDetection();
   const teams = snapshot?.runningApps.find((app) => app.id === "microsoft-teams");
 
@@ -16,5 +12,5 @@ export function MeetingHint({ compact = false }: Props) {
     ? "Microsoft Teams is in the foreground"
     : "Microsoft Teams is running";
 
-  return <p className={`meeting-hint ${compact ? "is-compact" : ""}`}>{text}</p>;
+  return <p className="text-[13px] text-muted-foreground">{text}</p>;
 }

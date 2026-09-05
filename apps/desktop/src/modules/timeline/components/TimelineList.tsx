@@ -34,9 +34,9 @@ export function TimelineList({ compact = false }: Props) {
   }
 
   return (
-    <ol className={`timeline ${compact ? "timeline-compact" : ""}`}>
+    <ol className="w-[min(320px,100%)] text-[13px] text-muted-foreground">
       {visible.map((event) => (
-        <li key={event.id}>
+        <li className="flex justify-between gap-4 py-1.5 tabular-nums" key={event.id}>
           <span>{formatTimestamp(event.timestampMs)}</span>
           <span>
             {event.type === "screenCapture" ? event.fileName : labelFor(event.type)}
