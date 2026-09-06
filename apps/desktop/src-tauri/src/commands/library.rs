@@ -5,7 +5,8 @@ use crate::state::AppState;
 
 use crate::error::AppError;
 use crate::library::{
-    create_folder, normalize_name, validate_color, validate_icon, LibrarySnapshot, RecordingFolder,
+    create_folder, folder_depth, normalize_name, validate_color, validate_icon, LibrarySnapshot,
+    RecordingFolder,
 };
 use crate::recorder::RecordingSession;
 use crate::storage::{self, StorageStats};
@@ -28,9 +29,18 @@ pub fn library_create_folder(
     name: String,
     icon: String,
     color: String,
+    parent_id: Option<String>,
 ) -> Result<RecordingFolder, AppError> {
     let mut library = storage::read_library(&app)?;
-    let folder = create_folder(name, icon, color)?;
+    if let Some(parent_id) = parent_id.as_ref() {
+        if !library.folders.iter().any(|folder| folder.id == *parent_id) {
+            return Err(AppError::msg("Folder not found."));
+        }
+        if folder_depth(&library.folders, parent_id) + 1 > 6 {
+            return Err(AppError::msg("Folders can only nest 6 levels deep."));
+        }
+    }
+    let folder = create_folder(name, icon, color, parent_id)?;
     library.folders.push(folder.clone());
     storage::persist_library(&app, &library)?;
     Ok(folder)
@@ -64,15 +74,28 @@ pub fn library_update_folder(
 #[tauri::command]
 pub fn library_delete_folder(app: AppHandle, id: String) -> Result<LibrarySnapshot, AppError> {
     let mut library = storage::read_library(&app)?;
-    let before = library.folders.len();
-    library.folders.retain(|folder| folder.id != id);
-    if library.folders.len() == before {
+    if !library.folders.iter().any(|folder| folder.id == id) {
         return Err(AppError::msg("Folder not found."));
     }
+    if library
+        .folders
+        .iter()
+        .any(|folder| folder.parent_id.as_deref() == Some(id.as_str()))
+    {
+        return Err(AppError::msg("Move or delete its subfolders first."));
+    }
+    let root = storage::recordings_dir(&app)?;
+    let recordings = storage::list_sessions(&root)?;
+    if recordings
+        .iter()
+        .any(|session| session.folder_id.as_deref() == Some(id.as_str()))
+    {
+        return Err(AppError::msg("Move its recordings first."));
+    }
+    library.folders.retain(|folder| folder.id != id);
     if library.default_folder_id.as_deref() == Some(id.as_str()) {
         library.default_folder_id = None;
     }
-    let root = storage::recordings_dir(&app)?;
     storage::clear_folder_assignments(&root, &id)?;
     storage::persist_library(&app, &library)?;
     Ok(library.into())

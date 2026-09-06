@@ -13,6 +13,8 @@ type Props = {
   isDefault: boolean;
   onEdit: () => void;
   onSetDefault: () => void;
+  onNewSubfolder?: () => void;
+  onDelete?: () => void;
 };
 
 const COMPACT = "(max-width: 640px)";
@@ -33,7 +35,7 @@ function useCompact() {
 
 function menuPosition(anchor: HTMLElement) {
   const rect = anchor.getBoundingClientRect();
-  const height = 96;
+  const height = 168;
   let top = rect.bottom + 6;
   let left = rect.right - MENU_WIDTH;
   left = Math.min(Math.max(8, left), window.innerWidth - MENU_WIDTH - 8);
@@ -43,7 +45,14 @@ function menuPosition(anchor: HTMLElement) {
   return { top, left };
 }
 
-export function FolderOptions({ folder, isDefault, onEdit, onSetDefault }: Props) {
+export function FolderOptions({
+  folder,
+  isDefault,
+  onEdit,
+  onSetDefault,
+  onNewSubfolder,
+  onDelete,
+}: Props) {
   const compact = useCompact();
   const [open, setOpen] = useState(false);
   const { present, entered } = usePresence(open && !compact);
@@ -105,6 +114,16 @@ export function FolderOptions({ folder, isDefault, onEdit, onSetDefault }: Props
     onSetDefault();
   };
 
+  const runSubfolder = () => {
+    close();
+    onNewSubfolder?.();
+  };
+
+  const runDelete = () => {
+    close();
+    onDelete?.();
+  };
+
   return (
     <div className={`folder-options ${open ? "is-open" : ""}`}>
       <button
@@ -131,7 +150,13 @@ export function FolderOptions({ folder, isDefault, onEdit, onSetDefault }: Props
               aria-label={`${folder.name} options`}
               style={{ top: coords.top, left: coords.left }}
             >
-              <FolderActionsContent isDefault={isDefault} onEdit={runEdit} onSetDefault={runDefault} />
+              <FolderActionsContent
+                isDefault={isDefault}
+                onEdit={runEdit}
+                onSetDefault={runDefault}
+                onNewSubfolder={onNewSubfolder ? runSubfolder : undefined}
+                onDelete={onDelete ? runDelete : undefined}
+              />
             </div>,
             document.body,
           )
@@ -140,7 +165,13 @@ export function FolderOptions({ folder, isDefault, onEdit, onSetDefault }: Props
       {compact ? (
         <Modal open={open} title="Folder options" onClose={close}>
           <p className="folder-actions-subtitle">{folder.name}</p>
-          <FolderActionsContent isDefault={isDefault} onEdit={runEdit} onSetDefault={runDefault} />
+          <FolderActionsContent
+            isDefault={isDefault}
+            onEdit={runEdit}
+            onSetDefault={runDefault}
+            onNewSubfolder={onNewSubfolder ? runSubfolder : undefined}
+            onDelete={onDelete ? runDelete : undefined}
+          />
           <button type="button" className="folder-actions-cancel" onClick={close}>
             Cancel
           </button>

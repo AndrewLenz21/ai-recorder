@@ -50,7 +50,7 @@ export function SortMenu({ value, onChange }: Props) {
         aria-haspopup="menu"
         onClick={() => setOpen((value) => !value)}
       >
-        {current.label}
+        Sort: {current.label}
       </button>
       {present ? (
         <div className={`sort-popover menu-surface ${entered ? "is-open" : ""}`} role="menu" aria-label="Sort recordings">

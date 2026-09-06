@@ -4,8 +4,8 @@ import { invokeCommand } from "./invoke";
 export const libraryCommands = {
   get: () => invokeCommand<LibrarySnapshot>("library_get"),
   storageStats: () => invokeCommand<StorageStats>("library_storage_stats"),
-  createFolder: (name: string, icon: string, color: string) =>
-    invokeCommand<RecordingFolder>("library_create_folder", { name, icon, color }),
+  createFolder: (name: string, icon: string, color: string, parentId?: string | null) =>
+    invokeCommand<RecordingFolder>("library_create_folder", { name, icon, color, parentId: parentId ?? null }),
   updateFolder: (id: string, name: string, icon: string, color: string) =>
     invokeCommand<RecordingFolder>("library_update_folder", { id, name, icon, color }),
   deleteFolder: (id: string) => invokeCommand<LibrarySnapshot>("library_delete_folder", { id }),

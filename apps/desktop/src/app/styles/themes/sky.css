@@ -1,13 +1,17 @@
 html.sky {
   color-scheme: light;
-  --bg: oklch(0.96 0.015 235);
-  --bg-elevated: oklch(1 0 0 / 0.9);
-  --text: oklch(0.25 0.06 250);
-  --text-secondary: oklch(0.5 0.04 250);
-  --border: oklch(0.9 0.02 235);
-  --btn: oklch(0.45 0.14 255);
-  --btn-text: oklch(0.98 0.01 235);
-  --record: oklch(0.45 0.14 255);
-  --record-soft: oklch(0.45 0.14 255 / 0.16);
-  --shadow: 0 10px 40px oklch(0.45 0.14 255 / 0.12);
+  --bg: oklch(0.97 0.03 228);
+  --bg-elevated: oklch(0.945 0.04 228 / 0.94);
+  --text: oklch(0.28 0.045 240);
+  --text-secondary: oklch(0.52 0.045 232);
+  --border: oklch(0.86 0.048 228);
+  --btn: oklch(0.58 0.12 240);
+  --btn-text: oklch(0.99 0.012 230);
+  --record: oklch(0.58 0.12 240);
+  --record-soft: oklch(0.58 0.12 240 / 0.16);
+  --screenshot-marker: oklch(0.86 0.055 228);
+  --screenshot-marker-hover: oklch(0.8 0.065 232);
+  --screenshot-marker-fg: oklch(0.26 0.07 240);
+  --screenshot-marker-active: oklch(0.22 0.08 240);
+  --shadow: 0 10px 40px oklch(0.5 0.08 232 / 0.12);
 }

@@ -90,6 +90,34 @@ export function ClockIcon({ size = 16 }: IconProps) {
   );
 }
 
+export function FilterIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M4 6h16M7 12h10M10 18h4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function ListViewIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M8 7h12M8 12h12M8 17h12" strokeLinecap="round" />
+      <path d="M4 7h.01M4 12h.01M4 17h.01" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function GridViewIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.4" />
+      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.4" />
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.4" />
+      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.4" />
+    </svg>
+  );
+}
+
 export function AudioBarsIcon({ size = 16 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -138,6 +166,24 @@ export function StarIcon({ size = 12 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="m12 4.6 2.1 4.3 4.7.7-3.4 3.3.8 4.7L12 15.7 7.8 17.6l.8-4.7-3.4-3.3 4.7-.7L12 4.6Z" />
+    </svg>
+  );
+}
+
+export function NotesIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M7 5.5h10A1.5 1.5 0 0 1 18.5 7v10A1.5 1.5 0 0 1 17 18.5H7A1.5 1.5 0 0 1 5.5 17V7A1.5 1.5 0 0 1 7 5.5Z" />
+      <path d="M8.5 9.5h7M8.5 12.5h7M8.5 15.5h4.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function SparkleIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M12 4.5 13.2 9 17.5 10.2 13.2 11.4 12 15.5 10.8 11.4 6.5 10.2 10.8 9 12 4.5Z" strokeLinejoin="round" />
+      <path d="M17.8 14.5 18.4 16.4 20.3 17 18.4 17.6 17.8 19.5 17.2 17.6 15.3 17 17.2 16.4 17.8 14.5Z" strokeLinejoin="round" />
     </svg>
   );
 }

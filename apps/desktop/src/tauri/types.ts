@@ -99,6 +99,7 @@ export type RecordingFolder = {
   name: string;
   icon: FolderIcon;
   color: FolderColor;
+  parentId?: string | null;
   createdAt: string;
   updatedAt: string;
 };

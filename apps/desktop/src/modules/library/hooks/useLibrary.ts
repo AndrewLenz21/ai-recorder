@@ -130,8 +130,8 @@ export function useLibrary() {
     setRoute,
     setSort,
     setDestination,
-    createFolder: (name: string, icon: FolderIcon, color: FolderColor) =>
-      run(() => libraryService.createFolder(name, icon, color)),
+    createFolder: (name: string, icon: FolderIcon, color: FolderColor, parentId?: string | null) =>
+      run(() => libraryService.createFolder(name, icon, color, parentId)),
     updateFolder: (id: string, name: string, icon: FolderIcon, color: FolderColor) =>
       run(() => libraryService.updateFolder(id, name, icon, color)),
     deleteFolder: async (id: string) => {

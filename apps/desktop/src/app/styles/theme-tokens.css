@@ -46,6 +46,30 @@
   initial-value: #1d1d1f;
 }
 
+@property --screenshot-marker {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #d8d8dc;
+}
+
+@property --screenshot-marker-hover {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #c8c8cc;
+}
+
+@property --screenshot-marker-fg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #3a3a3c;
+}
+
+@property --screenshot-marker-active {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1d1d1f;
+}
+
 :root {
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   --radius: 14px;
@@ -61,6 +85,10 @@
   --btn-text: oklch(0.985 0 0);
   --record: oklch(0.205 0 0);
   --record-soft: oklch(0.205 0 0 / 0.12);
+  --screenshot-marker: oklch(0.9 0 0);
+  --screenshot-marker-hover: oklch(0.84 0 0);
+  --screenshot-marker-fg: oklch(0.2 0 0);
+  --screenshot-marker-active: oklch(0.145 0 0);
   --shadow: 0 10px 40px oklch(0 0 0 / 0.08);
 }
 
@@ -82,6 +110,10 @@
   --color-control-foreground: var(--btn-text);
   --color-record: var(--record);
   --color-record-soft: var(--record-soft);
+  --color-screenshot-marker: var(--screenshot-marker);
+  --color-screenshot-marker-hover: var(--screenshot-marker-hover);
+  --color-screenshot-marker-foreground: var(--screenshot-marker-fg);
+  --color-screenshot-marker-active: var(--screenshot-marker-active);
   --font-sans: var(--font);
   --radius-app: var(--radius);
   --ease-app: var(--ease);

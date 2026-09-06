@@ -9,5 +9,9 @@ html.ocean {
   --btn-text: oklch(0.98 0.02 195);
   --record: oklch(0.4 0.18 195);
   --record-soft: oklch(0.4 0.18 195 / 0.16);
+  --screenshot-marker: oklch(0.86 0.05 195);
+  --screenshot-marker-hover: oklch(0.8 0.06 195);
+  --screenshot-marker-fg: oklch(0.24 0.08 200);
+  --screenshot-marker-active: oklch(0.2 0.09 195);
   --shadow: 0 10px 40px oklch(0.4 0.18 195 / 0.14);
 }

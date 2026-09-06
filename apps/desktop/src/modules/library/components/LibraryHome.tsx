@@ -76,10 +76,13 @@ export function LibraryHome() {
     .filter(Boolean)
     .join(" · ");
 
-  const orderedFolders = useMemo(
-    () => [...folders].sort((left, right) => Number(right.id === defaultFolderId) - Number(left.id === defaultFolderId)),
-    [defaultFolderId, folders],
-  );
+  const rootFolders = useMemo(() => folders.filter((folder) => !folder.parentId), [folders]);
+  const orderedFolders = useMemo(() => {
+    const recent = [...rootFolders].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    const pinned = defaultFolderId ? recent.filter((folder) => folder.id === defaultFolderId) : [];
+    const rest = recent.filter((folder) => folder.id !== defaultFolderId);
+    return [...pinned, ...rest].slice(0, 5);
+  }, [defaultFolderId, rootFolders]);
 
   const setDefaultWithTransition = (folderId: string) => {
     const update = () => setDefaultFolder(folderId);
@@ -135,7 +138,7 @@ export function LibraryHome() {
               />
             ) : null}
           </Modal>
-          {folders.length === 0 ? (
+          {rootFolders.length === 0 ? (
             <p className="muted">Create a folder to keep recordings organized.</p>
           ) : (
             <div className="folder-column-list">
@@ -181,6 +184,11 @@ export function LibraryHome() {
                   </div>
                 );
               })}
+              {rootFolders.length > 5 ? (
+                <button type="button" className="ghost-link" onClick={() => setRoute({ name: "all" })}>
+                  View all folders
+                </button>
+              ) : null}
             </div>
           )}
         </section>

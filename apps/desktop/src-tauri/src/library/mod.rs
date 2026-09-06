@@ -28,6 +28,8 @@ pub struct RecordingFolder {
     pub name: String,
     pub icon: String,
     pub color: String,
+    #[serde(default)]
+    pub parent_id: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -78,7 +80,12 @@ pub fn validate_color(color: &str) -> Result<(), AppError> {
     }
 }
 
-pub fn create_folder(name: String, icon: String, color: String) -> Result<RecordingFolder, AppError> {
+pub fn create_folder(
+    name: String,
+    icon: String,
+    color: String,
+    parent_id: Option<String>,
+) -> Result<RecordingFolder, AppError> {
     let name = normalize_name(&name)?;
     validate_icon(&icon)?;
     validate_color(&color)?;
@@ -88,9 +95,31 @@ pub fn create_folder(name: String, icon: String, color: String) -> Result<Record
         name,
         icon,
         color,
+        parent_id,
         created_at: now.clone(),
         updated_at: now,
     })
+}
+
+pub fn folder_depth(folders: &[RecordingFolder], id: &str) -> usize {
+    let mut depth = 0;
+    let mut current_id = Some(id);
+    let mut seen = 0;
+    while let Some(id) = current_id {
+        if seen > folders.len() {
+            break;
+        }
+        let folder = folders.iter().find(|folder| folder.id == id);
+        match folder.and_then(|folder| folder.parent_id.as_deref()) {
+            Some(parent_id) => {
+                depth += 1;
+                current_id = Some(parent_id);
+            }
+            None => break,
+        }
+        seen += 1;
+    }
+    depth
 }
 
 pub fn normalize_name(name: &str) -> Result<String, AppError> {

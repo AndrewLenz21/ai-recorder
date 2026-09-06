@@ -2,14 +2,25 @@ import { PauseIcon, PlayIcon } from "@/shared/components/icons";
 import { formatTimestamp } from "@/shared/lib/time";
 
 import { useAudioPlayer } from "../hooks/useAudioPlayer";
-import { SeekBar } from "./SeekBar";
+import type { ScreenshotCue } from "../types";
+import { AudioWaveform } from "./AudioWaveform";
 
-export function AudioPlayer() {
+type Props = {
+  screenshots?: ScreenshotCue[];
+  selectedScreenshotId?: string | null;
+  onScreenshotSelect?: (id: string) => void;
+};
+
+export function AudioPlayer({ screenshots, selectedScreenshotId, onScreenshotSelect }: Props) {
   const { playing, currentTime, duration, toggle, skip, error } = useAudioPlayer();
 
   return (
     <div className="flex flex-col gap-2.5 px-0 pt-2 pb-1">
-      <SeekBar />
+      <AudioWaveform
+        screenshots={screenshots}
+        selectedScreenshotId={selectedScreenshotId}
+        onScreenshotSelect={onScreenshotSelect}
+      />
       <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
         <span>{formatTimestamp(currentTime * 1000)}</span>
         <span>{formatTimestamp(duration * 1000)}</span>

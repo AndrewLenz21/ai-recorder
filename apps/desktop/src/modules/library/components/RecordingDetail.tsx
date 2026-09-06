@@ -10,6 +10,7 @@ import type { RecordingSession, SessionSummary } from "@/tauri/types";
 import { libraryService } from "../services/library.service";
 import { useLibrary, useLibraryHydration } from "../hooks/useLibrary";
 import { recordingTitle } from "../utils/recordings";
+import { RecordingDetailTabs, type DetailTabId } from "./RecordingDetailTabs";
 import { RecordingSidebar } from "./RecordingSidebar";
 
 function toSummary(session: RecordingSession): SessionSummary {
@@ -37,8 +38,23 @@ export function RecordingDetail() {
   const session = viewingSession ?? liveSession;
   const { dismiss, openSession } = useRecorder();
   const { visibleRecordings, currentFolder, route, refresh } = useLibrary();
-  const [collapsed, setCollapsed] = useState(() => CompactQuery().matches);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem("ai-recorder.detail-sidebar-collapsed");
+      if (stored === "1" || CompactQuery().matches) {
+        return true;
+      }
+      if (stored === "0") {
+        return false;
+      }
+    } catch {
+      // Ignore private-mode storage errors.
+    }
+    return CompactQuery().matches;
+  });
   const [titleDraft, setTitleDraft] = useState("");
+  const [selectedCaptureId, setSelectedCaptureId] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState<DetailTabId>("screenshots");
 
   useEffect(() => {
     const media = CompactQuery();
@@ -68,6 +84,10 @@ export function RecordingDetail() {
   }, [session]);
 
   useEffect(() => {
+    setSelectedCaptureId(null);
+  }, [session?.id]);
+
+  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.code !== "Space" || event.repeat) {
         return;
@@ -84,6 +104,17 @@ export function RecordingDetail() {
   }, []);
 
   const captures = session?.events.filter((event) => event.type === "screenCapture") ?? [];
+  const screenshotCues = captures.flatMap((event) =>
+    event.type === "screenCapture"
+      ? [
+          {
+            id: event.id,
+            timestampMs: event.timestampMs,
+            imageSrc: convertFileSrc(event.imagePath),
+          },
+        ]
+      : [],
+  );
 
   const sidebarItems = useMemo(() => {
     if (!session) {
@@ -130,16 +161,22 @@ export function RecordingDetail() {
             void openSession(id);
           }
         }}
-        onToggle={() => setCollapsed(true)}
+        onToggle={() => {
+          setCollapsed((value) => {
+            const next = !value;
+            try {
+              window.localStorage.setItem("ai-recorder.detail-sidebar-collapsed", next ? "1" : "0");
+            } catch {
+              // Ignore private-mode storage errors.
+            }
+            return next;
+          });
+        }}
       />
 
       <div className="detail-main">
         <div className="detail-top">
-          {collapsed ? (
-            <button type="button" className="ghost-link" onClick={() => setCollapsed(false)}>
-              Show recordings
-            </button>
-          ) : <span />}
+          <span />
           <button type="button" className="ghost-link" onClick={() => void dismiss()}>
             Close
           </button>
@@ -166,26 +203,36 @@ export function RecordingDetail() {
           </p>
         </header>
 
-        {session.audioFile ? <AudioPlayer /> : <p className="muted">No audio in this recording.</p>}
+        {session.audioFile ? (
+          <AudioPlayer
+            screenshots={screenshotCues}
+            selectedScreenshotId={selectedCaptureId}
+            onScreenshotSelect={(id) => {
+              setSelectedCaptureId(id);
+              setDetailTab("screenshots");
+              window.requestAnimationFrame(() => {
+                document.getElementById(`capture-${id}`)?.scrollIntoView({
+                  inline: "center",
+                  block: "nearest",
+                  behavior: "smooth",
+                });
+              });
+            }}
+          />
+        ) : (
+          <p className="muted">No audio in this recording.</p>
+        )}
 
-        {captures.length > 0 ? (
-          <ul className="capture-strip">
-            {captures.map((event) =>
-              event.type === "screenCapture" ? (
-                <li key={event.id}>
-                  <button
-                    type="button"
-                    className="capture-chip"
-                    onClick={() => seekAudio(event.timestampMs / 1000)}
-                  >
-                    <img src={convertFileSrc(event.imagePath)} alt="" />
-                    <span>{formatTimestamp(event.timestampMs)}</span>
-                  </button>
-                </li>
-              ) : null,
-            )}
-          </ul>
-        ) : null}
+        <RecordingDetailTabs
+          captures={captures.flatMap((event) => (event.type === "screenCapture" ? [event] : []))}
+          selectedCaptureId={selectedCaptureId}
+          onSelectCapture={(id, timestampMs) => {
+            setSelectedCaptureId(id);
+            seekAudio(timestampMs / 1000);
+          }}
+          tab={detailTab}
+          onTabChange={setDetailTab}
+        />
       </div>
     </section>
   );

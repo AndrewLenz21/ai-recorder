@@ -9,5 +9,9 @@ html.atom {
   --btn-text: oklch(0.27 0.03 260);
   --record: oklch(0.73 0.17 245);
   --record-soft: oklch(0.73 0.17 245 / 0.2);
+  --screenshot-marker: oklch(0.34 0.04 250);
+  --screenshot-marker-hover: oklch(0.4 0.05 248);
+  --screenshot-marker-fg: oklch(0.94 0.04 245);
+  --screenshot-marker-active: oklch(0.97 0.05 245);
   --shadow: 0 12px 40px oklch(0.2 0.03 260 / 0.4);
 }

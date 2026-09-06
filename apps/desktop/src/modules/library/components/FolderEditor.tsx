@@ -45,7 +45,9 @@ export function FolderEditor({ folder, variant = "inline", onSave, onDelete, onC
     >
       <div className="folder-editor-head">
         <span className={`folder-mark is-${color}`}>
-          <FolderGlyph icon={icon} />
+          <span key={icon} className="folder-mark-glyph">
+            <FolderGlyph icon={icon} />
+          </span>
         </span>
         <input
           className="folder-name-input"

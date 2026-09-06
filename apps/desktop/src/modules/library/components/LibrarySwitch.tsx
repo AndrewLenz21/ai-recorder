@@ -9,7 +9,8 @@ const SECTIONS: { id: LibrarySection; label: string }[] = [
 
 export function LibrarySwitch() {
   const { route, setRoute } = useLibrary();
-  const active: LibrarySection = route.name === "all" || route.name === "storage" ? route.name : "root";
+  const active: LibrarySection =
+    route.name === "all" || route.name === "folder" ? "all" : route.name === "storage" ? route.name : "root";
 
   return (
     <nav className="flex self-center gap-0.5 rounded-xl bg-border p-[3px]" aria-label="Library">

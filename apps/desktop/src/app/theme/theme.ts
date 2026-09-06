@@ -1,13 +1,13 @@
 export const THEME_STORAGE_KEY = "ai-recorder.theme";
 
 export const THEMES = [
-  { id: "light", label: "Light", scheme: "light", swatch: "oklch(0.96 0 0)" },
-  { id: "dark", label: "Dark", scheme: "dark", swatch: "oklch(0.21 0 0)" },
-  { id: "atom", label: "Atom", scheme: "dark", swatch: "oklch(0.27 0.03 260)" },
-  { id: "sky", label: "Sky", scheme: "light", swatch: "oklch(0.96 0.015 235)" },
-  { id: "ocean", label: "Ocean", scheme: "light", swatch: "oklch(0.93 0.045 195)" },
-  { id: "pink", label: "Pink", scheme: "light", swatch: "oklch(0.965 0.018 8)" },
-  { id: "pressroom", label: "Pressroom", scheme: "light", swatch: "oklch(0.955 0.025 88)" },
+  { id: "light", label: "Light", scheme: "light", swatch: "oklch(0.205 0 0)" },
+  { id: "dark", label: "Dark", scheme: "dark", swatch: "oklch(0.922 0 0)" },
+  { id: "atom", label: "Atom", scheme: "dark", swatch: "oklch(0.73 0.17 245)" },
+  { id: "sky", label: "Sky", scheme: "light", swatch: "oklch(0.58 0.12 240)" },
+  { id: "ocean", label: "Ocean", scheme: "light", swatch: "oklch(0.4 0.18 195)" },
+  { id: "pink", label: "Pink", scheme: "light", swatch: "oklch(0.69 0.11 352)" },
+  { id: "pressroom", label: "Pressroom", scheme: "light", swatch: "oklch(0.42 0.055 240)" },
 ] as const;
 
 export type Theme = (typeof THEMES)[number]["id"];

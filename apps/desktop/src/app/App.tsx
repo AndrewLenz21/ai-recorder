@@ -13,11 +13,13 @@ import { NativeBridge } from "./providers/NativeBridge";
 
 export function App() {
   const view = useRecorderView();
+  const libraryRoute = useLibraryStore((state) => state.route);
+  const wide = view === "summary" || libraryRoute.name === "all" || libraryRoute.name === "folder";
 
   return (
     <NativeBridge>
       <SaveNotice />
-      <MainLayout wide={view === "summary"}>
+      <MainLayout wide={wide}>
         {view === "summary" ? null : <PermissionsBanner />}
         <MainView view={view} />
       </MainLayout>
