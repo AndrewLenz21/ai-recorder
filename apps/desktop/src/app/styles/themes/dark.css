@@ -13,5 +13,14 @@ html.dark {
   --screenshot-marker-hover: oklch(0.34 0 0);
   --screenshot-marker-fg: oklch(0.96 0 0);
   --screenshot-marker-active: oklch(0.99 0 0);
+  --settings-page-bg: var(--bg);
+  --settings-sidebar-bg: transparent;
+  --settings-sidebar-active: oklch(0.22 0 0);
+  --settings-panel-bg: oklch(0.2 0 0);
+  --settings-panel-border: oklch(1 0 0 / 0.12);
+  --settings-interactive-bg: oklch(0.24 0 0);
+  --settings-interactive-hover: oklch(0.28 0 0);
+  --settings-muted-text: var(--text-secondary);
+  --settings-accent: var(--btn);
   --shadow: 0 12px 40px oklch(0 0 0 / 0.35);
 }

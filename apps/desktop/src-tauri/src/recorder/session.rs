@@ -29,6 +29,19 @@ pub struct RecordingSession {
     pub channels: u16,
     pub directory: String,
     pub events: Vec<RecordingEvent>,
+    #[serde(default)]
+    pub transcript: Option<Vec<TranscriptSegment>>,
+    #[serde(default)]
+    pub summary: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptSegment {
+    pub id: String,
+    pub start_ms: u64,
+    pub end_ms: u64,
+    pub text: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

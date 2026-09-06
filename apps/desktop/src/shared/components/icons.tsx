@@ -45,6 +45,16 @@ export function CaptureIcon({ size = 18 }: IconProps) {
   );
 }
 
+export function DownloadIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M12 5v10" strokeLinecap="round" />
+      <path d="m8 11 4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 18h12" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function OpenIcon({ size = 16 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -67,6 +77,18 @@ export function PlusIcon({ size = 16 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
       <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function GearIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path
+        strokeLinecap="round"
+        d="M12 4.5v1.4M12 18.1v1.4M4.5 12h1.4M18.1 12h1.4M6.4 6.4l1 1M16.6 16.6l1 1M17.6 6.4l-1 1M7.4 16.6l-1 1"
+      />
     </svg>
   );
 }
@@ -125,6 +147,14 @@ export function AudioBarsIcon({ size = 16 }: IconProps) {
       <rect x="9.2" y="6" width="2.4" height="12" rx="1.2" />
       <rect x="13.4" y="8" width="2.4" height="8" rx="1.2" />
       <rect x="17.6" y="10" width="2.4" height="4" rx="1.2" />
+    </svg>
+  );
+}
+
+export function ChevronDownIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -196,6 +226,68 @@ export function MoonIcon({ size = 16 }: IconProps) {
         strokeLinejoin="round"
         d="M16.4 13.6A6.4 6.4 0 0 1 10.4 4.8 7 7 0 1 0 19.2 13.6a6.3 6.3 0 0 1-2.8 0z"
       />
+    </svg>
+  );
+}
+
+export function CloseIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function KeyIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <circle cx="8.2" cy="12" r="3.1" />
+      <path d="M11.2 12H20M16.6 12v2.4M19.2 12v2.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function GlobeIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <circle cx="12" cy="12" r="7.4" />
+      <path d="M4.6 12h14.8M12 4.6c2.3 2.5 3.5 5 3.5 7.4s-1.2 4.9-3.5 7.4M12 4.6C9.7 7.1 8.5 9.6 8.5 12s1.2 4.9 3.5 7.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function EyeIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M2.8 12s3.4-6.2 9.2-6.2S21.2 12 21.2 12 17.8 18.2 12 18.2 2.8 12 2.8 12Z" />
+      <circle cx="12" cy="12" r="2.5" />
+    </svg>
+  );
+}
+
+export function EyeOffIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M4 5.5 19.5 19" strokeLinecap="round" />
+      <path d="M9.2 9.4A3.2 3.2 0 0 0 12 15.2M7.1 7.6C4.3 9.2 2.8 12 2.8 12s3.4 6.2 9.2 6.2c1.5 0 2.8-.3 4-.8M16.6 15.3C19 13.8 21.2 12 21.2 12S17.8 5.8 12 5.8c-.7 0-1.3.1-1.9.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function RefreshIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M19.6 12a7.6 7.6 0 1 1-2.2-5.4" strokeLinecap="round" />
+      <path d="M19.6 5.2v5h-5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function AlertIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M12 8.2v5.4M12 16.9v.3" strokeLinecap="round" />
+      <path d="M12 4.6 20.4 18.8H3.6L12 4.6Z" strokeLinejoin="round" />
     </svg>
   );
 }

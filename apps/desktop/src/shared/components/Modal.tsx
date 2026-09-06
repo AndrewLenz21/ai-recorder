@@ -1,11 +1,14 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
+import { CloseIcon } from "./icons";
+
 type Props = {
   open: boolean;
   title: string;
   subtitle?: string;
-  size?: "default" | "picker";
+  size?: "default" | "picker" | "wide";
+  leading?: ReactNode;
   onClose: () => void;
   children: ReactNode;
 };
@@ -16,7 +19,7 @@ function motionMs() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 200;
 }
 
-export function Modal({ open, title, subtitle, size = "default", onClose, children }: Props) {
+export function Modal({ open, title, subtitle, size = "default", leading, onClose, children }: Props) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -46,6 +49,7 @@ export function Modal({ open, title, subtitle, size = "default", onClose, childr
     const focusTarget =
       panel?.querySelector<HTMLElement>("input, textarea, select") ??
       panel?.querySelector<HTMLElement>(FOCUSABLE);
+
     focusTarget?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -97,22 +101,29 @@ export function Modal({ open, title, subtitle, size = "default", onClose, childr
       <div
         ref={panelRef}
         className={`modal-panel rounded-[18px] border border-border bg-surface opacity-0 shadow-app transition-[opacity,transform] duration-200 ease-app ${
-          size === "picker"
-            ? "w-[min(440px,calc(100vw-32px))] px-4 pt-[18px] pb-3"
-            : "w-[min(480px,calc(100vw-32px))] px-5 pt-5 pb-4"
-        } ${entered ? "translate-y-0 scale-100 opacity-100" : "translate-y-2 scale-[0.985]"}`}
+          size === "wide"
+            ? "w-[min(720px,calc(100vw-32px))] px-5 pt-4 pb-4"
+            : size === "picker"
+              ? "w-[min(440px,calc(100vw-32px))] px-4 pt-4 pb-3"
+              : "w-[min(440px,calc(100vw-32px))] px-[18px] pt-4 pb-3.5"
+        } ${entered ? "is-open translate-y-0 scale-100 opacity-100" : "translate-y-2 scale-[0.985]"}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <h2
-          className={`modal-title text-[17px] font-[590] tracking-[-0.03em] text-foreground ${subtitle ? "mb-1" : "mb-4"}`}
-          id={titleId}
-        >
-          {title}
-        </h2>
-        {subtitle ? <p className="modal-subtitle mb-3.5 text-[13px] leading-[1.4] text-muted-foreground">{subtitle}</p> : null}
+        <header className="modal-head">
+          {leading}
+          <div className="modal-head-copy">
+            <h2 className="modal-title font-[590] tracking-[-0.03em] text-foreground" id={titleId}>
+              {title}
+            </h2>
+            {subtitle ? <p className="modal-subtitle leading-[1.4] text-muted-foreground">{subtitle}</p> : null}
+          </div>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+            <CloseIcon size={15} />
+          </button>
+        </header>
         {children}
       </div>
     </div>,

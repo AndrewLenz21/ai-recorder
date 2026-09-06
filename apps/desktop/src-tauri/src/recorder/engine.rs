@@ -90,6 +90,8 @@ impl RecorderEngine {
             channels: audio.channels(),
             directory: path_to_string(&directory),
             events: Vec::new(),
+            transcript: None,
+            summary: None,
         };
         session.events.push(RecordingEvent::RecordingStarted {
             id: event_id(),

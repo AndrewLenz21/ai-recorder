@@ -13,5 +13,14 @@ html.sky {
   --screenshot-marker-hover: oklch(0.8 0.065 232);
   --screenshot-marker-fg: oklch(0.26 0.07 240);
   --screenshot-marker-active: oklch(0.22 0.08 240);
+  --settings-page-bg: var(--bg);
+  --settings-sidebar-bg: transparent;
+  --settings-sidebar-active: oklch(0.92 0.045 228);
+  --settings-panel-bg: oklch(0.99 0.018 228);
+  --settings-panel-border: oklch(0.84 0.05 228);
+  --settings-interactive-bg: oklch(0.94 0.04 228);
+  --settings-interactive-hover: oklch(0.9 0.05 228);
+  --settings-muted-text: var(--text-secondary);
+  --settings-accent: var(--btn);
   --shadow: 0 10px 40px oklch(0.5 0.08 232 / 0.12);
 }

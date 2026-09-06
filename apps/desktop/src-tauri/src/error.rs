@@ -35,3 +35,21 @@ impl From<tauri::Error> for AppError {
         Self::msg(value.to_string())
     }
 }
+
+impl From<reqwest::Error> for AppError {
+    fn from(value: reqwest::Error) -> Self {
+        Self::msg(value.to_string())
+    }
+}
+
+impl From<keyring::Error> for AppError {
+    fn from(value: keyring::Error) -> Self {
+        Self::msg(value.to_string())
+    }
+}
+
+impl From<hound::Error> for AppError {
+    fn from(value: hound::Error) -> Self {
+        Self::msg(value.to_string())
+    }
+}

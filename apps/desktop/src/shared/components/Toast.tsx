@@ -1,24 +1,39 @@
+import { createPortal } from "react-dom";
+
 import { useToastStore } from "../stores/toast.store";
+import { CheckIcon } from "./icons";
+
+function AlertMark() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M12 8.2v5.4M12 16.9v.3" strokeLinecap="round" />
+      <path d="M12 4.6 20.4 18.8H3.6L12 4.6Z" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export function Toast() {
   const toast = useToastStore((state) => state.toast);
   const visible = useToastStore((state) => state.visible);
+  const hide = useToastStore((state) => state.hide);
 
   if (!toast) {
     return null;
   }
 
-  return (
+  return createPortal(
     <div
-      className={`toast fixed bottom-7 left-1/2 z-30 flex min-w-[180px] max-w-[min(320px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-0.5 rounded-app border border-border bg-surface px-4 py-3 opacity-0 shadow-app transition-[opacity,transform] duration-200 ease-app ${
-        visible ? "is-open translate-y-0 opacity-100" : "translate-y-2"
-      }`}
+      className={`app-toast ${toast.kind === "error" ? "is-error" : "is-success"} ${visible ? "is-open" : ""}`}
       role="status"
+      onClick={() => hide()}
     >
-      <strong className={`text-[13px] font-[650] ${toast.kind === "error" ? "text-[#c74646]" : ""}`}>
-        {toast.title}
-      </strong>
-      {toast.detail ? <span className="text-xs text-muted-foreground">{toast.detail}</span> : null}
-    </div>
+      <span className="app-toast-mark">{toast.kind === "error" ? <AlertMark /> : <CheckIcon size={14} />}</span>
+      <div className="app-toast-copy">
+        <strong>{toast.title}</strong>
+        {toast.detail ? <span>{toast.detail}</span> : null}
+      </div>
+      <i key={toast.id} className="app-toast-life" />
+    </div>,
+    document.body,
   );
 }

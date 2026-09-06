@@ -38,7 +38,7 @@ export const useToastStore = create<ToastStore>((set) => ({
     window.clearTimeout(clearTimer);
     clearTimer = window.setTimeout(() => {
       useToastStore.setState({ toast: null });
-    }, 200);
+    }, 280);
   },
   clear: () => {
     window.clearTimeout(hideTimer);

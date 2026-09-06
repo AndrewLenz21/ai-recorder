@@ -1,8 +1,9 @@
 import { useLibrary, useLibraryHydration } from "../hooks/useLibrary";
+import { SettingsView } from "@/modules/settings/components/SettingsView";
+
 import { LibraryBrowse } from "./LibraryBrowse";
 import { LibraryHome } from "./LibraryHome";
 import { LibrarySwitch } from "./LibrarySwitch";
-import { StorageView } from "./StorageView";
 
 export function LibraryApp() {
   useLibraryHydration();
@@ -12,8 +13,8 @@ export function LibraryApp() {
       ? route.folderId
       : route.name === "all"
         ? "all"
-        : route.name === "storage"
-          ? "storage"
+        : route.name === "settings"
+          ? "settings"
           : "root";
   const browsing = route.name === "all" || route.name === "folder";
 
@@ -23,8 +24,8 @@ export function LibraryApp() {
       <div className="library-pane" key={pane}>
         {browsing ? (
           <LibraryBrowse />
-        ) : route.name === "storage" ? (
-          <StorageView />
+        ) : route.name === "settings" ? (
+          <SettingsView />
         ) : (
           <LibraryHome />
         )}

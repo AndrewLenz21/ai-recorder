@@ -89,6 +89,15 @@
   --screenshot-marker-hover: oklch(0.84 0 0);
   --screenshot-marker-fg: oklch(0.2 0 0);
   --screenshot-marker-active: oklch(0.145 0 0);
+  --settings-page-bg: var(--bg);
+  --settings-sidebar-bg: transparent;
+  --settings-sidebar-active: oklch(0.93 0 0);
+  --settings-panel-bg: oklch(0.99 0 0);
+  --settings-panel-border: oklch(0.9 0 0);
+  --settings-interactive-bg: oklch(0.955 0 0);
+  --settings-interactive-hover: oklch(0.93 0 0);
+  --settings-muted-text: var(--text-secondary);
+  --settings-accent: var(--btn);
   --shadow: 0 10px 40px oklch(0 0 0 / 0.08);
 }
 

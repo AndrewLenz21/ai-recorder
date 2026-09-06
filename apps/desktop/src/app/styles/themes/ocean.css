@@ -13,5 +13,14 @@ html.ocean {
   --screenshot-marker-hover: oklch(0.8 0.06 195);
   --screenshot-marker-fg: oklch(0.24 0.08 200);
   --screenshot-marker-active: oklch(0.2 0.09 195);
+  --settings-page-bg: var(--bg);
+  --settings-sidebar-bg: transparent;
+  --settings-sidebar-active: oklch(0.88 0.05 195);
+  --settings-panel-bg: oklch(0.97 0.02 195);
+  --settings-panel-border: oklch(0.82 0.06 195);
+  --settings-interactive-bg: oklch(0.9 0.045 195);
+  --settings-interactive-hover: oklch(0.86 0.055 195);
+  --settings-muted-text: var(--text-secondary);
+  --settings-accent: var(--btn);
   --shadow: 0 10px 40px oklch(0.4 0.18 195 / 0.14);
 }

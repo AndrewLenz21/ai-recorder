@@ -1,13 +1,17 @@
+mod ai;
 mod commands;
+mod credentials;
 mod error;
 mod library;
 mod meeting_detection;
 mod permissions;
 mod recorder;
 mod screen_capture;
+mod settings;
 mod state;
 mod storage;
 mod timeline;
+mod transcription;
 mod windows;
 
 use state::AppState;
@@ -18,6 +22,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(AppState::new())
         .setup(|app| {
+            credentials::migrate_legacy_secrets();
             if let Err(error) = windows::create_widget(app.handle()) {
                 eprintln!("widget window was not created: {error}");
             }
@@ -50,6 +55,23 @@ pub fn run() {
             commands::windows::window_show_main,
             commands::windows::window_show_widget,
             commands::windows::window_hide_widget,
+            commands::settings::settings_get,
+            commands::settings::settings_connect_provider,
+            commands::settings::settings_update_connection,
+            commands::settings::settings_disconnect_provider,
+            commands::settings::settings_set_default_provider,
+            commands::settings::settings_test_connection,
+            commands::settings::settings_test_credentials,
+            commands::settings::settings_preview_ai_models,
+            commands::settings::settings_refresh_ai_models,
+            commands::settings::settings_preview_transcription_models,
+            commands::settings::settings_refresh_transcription_models,
+            commands::settings::settings_download_local_model,
+            commands::settings::settings_remove_local_model,
+            commands::settings::recorder_transcribe,
+            commands::settings::recorder_generate_summary,
+            commands::settings::credentials_has,
+            commands::settings::credentials_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

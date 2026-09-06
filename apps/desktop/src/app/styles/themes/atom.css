@@ -13,5 +13,14 @@ html.atom {
   --screenshot-marker-hover: oklch(0.4 0.05 248);
   --screenshot-marker-fg: oklch(0.94 0.04 245);
   --screenshot-marker-active: oklch(0.97 0.05 245);
+  --settings-page-bg: var(--bg);
+  --settings-sidebar-bg: transparent;
+  --settings-sidebar-active: oklch(0.32 0.035 260);
+  --settings-panel-bg: oklch(0.23 0.03 260);
+  --settings-panel-border: oklch(0.985 0 0 / 0.12);
+  --settings-interactive-bg: oklch(0.3 0.035 258);
+  --settings-interactive-hover: oklch(0.34 0.04 255);
+  --settings-muted-text: var(--text-secondary);
+  --settings-accent: var(--btn);
   --shadow: 0 12px 40px oklch(0.2 0.03 260 / 0.4);
 }

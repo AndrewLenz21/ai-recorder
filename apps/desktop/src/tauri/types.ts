@@ -45,6 +45,13 @@ export type RecordingEvent =
       fileName: string;
     };
 
+export type TranscriptSegment = {
+  id: string;
+  startMs: number;
+  endMs: number;
+  text: string;
+};
+
 export type RecordingSession = {
   id: string;
   title?: string | null;
@@ -57,6 +64,8 @@ export type RecordingSession = {
   channels: number;
   directory: string;
   events: RecordingEvent[];
+  transcript?: TranscriptSegment[] | null;
+  summary?: string | null;
 };
 
 export type SessionSummary = {

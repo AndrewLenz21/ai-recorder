@@ -10,6 +10,8 @@ import type { RecordingSession, SessionSummary } from "@/tauri/types";
 import { libraryService } from "../services/library.service";
 import { useLibrary, useLibraryHydration } from "../hooks/useLibrary";
 import { recordingTitle } from "../utils/recordings";
+import { useSettings } from "@/modules/settings/hooks/useSettings";
+
 import { RecordingDetailTabs, type DetailTabId } from "./RecordingDetailTabs";
 import { RecordingSidebar } from "./RecordingSidebar";
 
@@ -38,6 +40,7 @@ export function RecordingDetail() {
   const session = viewingSession ?? liveSession;
   const { dismiss, openSession } = useRecorder();
   const { visibleRecordings, currentFolder, route, refresh } = useLibrary();
+  const { settings } = useSettings();
   const [collapsed, setCollapsed] = useState(() => {
     try {
       const stored = window.localStorage.getItem("ai-recorder.detail-sidebar-collapsed");
@@ -224,11 +227,17 @@ export function RecordingDetail() {
         )}
 
         <RecordingDetailTabs
+          key={session.id}
+          session={session}
+          settings={settings}
           captures={captures.flatMap((event) => (event.type === "screenCapture" ? [event] : []))}
           selectedCaptureId={selectedCaptureId}
           onSelectCapture={(id, timestampMs) => {
             setSelectedCaptureId(id);
             seekAudio(timestampMs / 1000);
+          }}
+          onSessionUpdate={(updated) => {
+            useRecorderStore.getState().setViewingSession(updated);
           }}
           tab={detailTab}
           onTabChange={setDetailTab}

@@ -5,6 +5,7 @@ type Variant = "primary" | "secondary" | "ghost" | "record" | "stop";
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
   size?: "sm" | "md" | "lg";
+  busy?: boolean;
 };
 
 const base =
@@ -29,13 +30,20 @@ export function Button({
   size = "md",
   className = "",
   type = "button",
+  busy = false,
+  disabled,
+  children,
   ...props
 }: Props) {
   return (
     <button
       type={type}
-      className={`${base} ${variants[variant]} ${sizes[size]} ${className}`.trim()}
+      className={`${base} ${variants[variant]} ${sizes[size]} ${busy ? "is-busy" : ""} ${className}`.trim()}
+      disabled={disabled || busy}
+      aria-busy={busy || undefined}
       {...props}
-    />
+    >
+      {children}
+    </button>
   );
 }

@@ -14,7 +14,11 @@ import { NativeBridge } from "./providers/NativeBridge";
 export function App() {
   const view = useRecorderView();
   const libraryRoute = useLibraryStore((state) => state.route);
-  const wide = view === "summary" || libraryRoute.name === "all" || libraryRoute.name === "folder";
+  const wide =
+    view === "summary" ||
+    libraryRoute.name === "all" ||
+    libraryRoute.name === "folder" ||
+    libraryRoute.name === "settings";
 
   return (
     <NativeBridge>

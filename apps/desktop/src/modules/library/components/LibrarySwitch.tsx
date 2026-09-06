@@ -4,13 +4,13 @@ import type { LibrarySection } from "../types";
 const SECTIONS: { id: LibrarySection; label: string }[] = [
   { id: "root", label: "Dashboard" },
   { id: "all", label: "Recordings" },
-  { id: "storage", label: "Storage" },
+  { id: "settings", label: "Settings" },
 ];
 
 export function LibrarySwitch() {
   const { route, setRoute } = useLibrary();
   const active: LibrarySection =
-    route.name === "all" || route.name === "folder" ? "all" : route.name === "storage" ? route.name : "root";
+    route.name === "all" || route.name === "folder" ? "all" : route.name === "settings" ? route.name : "root";
 
   return (
     <nav className="flex self-center gap-0.5 rounded-xl bg-border p-[3px]" aria-label="Library">

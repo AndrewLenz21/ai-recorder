@@ -1,8 +1,8 @@
 export const THEME_STORAGE_KEY = "ai-recorder.theme";
 
 export const THEMES = [
-  { id: "light", label: "Light", scheme: "light", swatch: "oklch(0.205 0 0)" },
-  { id: "dark", label: "Dark", scheme: "dark", swatch: "oklch(0.922 0 0)" },
+  { id: "light", label: "Light", scheme: "light", swatch: "oklch(0.97 0 0)" },
+  { id: "dark", label: "Dark", scheme: "dark", swatch: "oklch(0.22 0 0)" },
   { id: "atom", label: "Atom", scheme: "dark", swatch: "oklch(0.73 0.17 245)" },
   { id: "sky", label: "Sky", scheme: "light", swatch: "oklch(0.58 0.12 240)" },
   { id: "ocean", label: "Ocean", scheme: "light", swatch: "oklch(0.4 0.18 195)" },
