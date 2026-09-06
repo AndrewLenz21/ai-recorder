@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::timeline::RecordingEvent;
 
@@ -32,7 +33,70 @@ pub struct RecordingSession {
     #[serde(default)]
     pub transcript: Option<Vec<TranscriptSegment>>,
     #[serde(default)]
+    pub transcript_provider: Option<String>,
+    #[serde(default)]
+    pub transcript_model: Option<String>,
+    #[serde(default)]
+    pub transcript_language: Option<String>,
+    #[serde(default)]
+    pub transcript_history: Vec<TranscriptRun>,
+    #[serde(default)]
     pub summary: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptRun {
+    pub id: String,
+    pub created_at: String,
+    pub provider: String,
+    pub model: String,
+    #[serde(default)]
+    pub language: Option<String>,
+    pub segments: Vec<TranscriptSegment>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum TranscriptKind {
+    Speech,
+    Music,
+    Sound,
+}
+
+impl Default for TranscriptKind {
+    fn default() -> Self {
+        Self::Speech
+    }
+}
+
+impl TranscriptKind {
+    pub fn from_text(text: &str) -> Self {
+        let trimmed = text.trim();
+        let inner = trimmed
+            .trim_matches(|mark| mark == '[' || mark == ']' || mark == '(' || mark == ')' || mark == '*' || mark == '♪' || mark == '♫')
+            .trim()
+            .to_ascii_lowercase();
+        if inner.is_empty()
+            || inner == "music"
+            || inner == "singing"
+            || trimmed == "♪"
+            || trimmed == "♫"
+        {
+            return Self::Music;
+        }
+        if matches!(
+            inner.as_str(),
+            "applause" | "laughter" | "laughing" | "silence" | "blank_audio" | "inaudible" | "noise" | "cough"
+        ) {
+            return Self::Sound;
+        }
+        if (trimmed.starts_with('[') && trimmed.ends_with(']')) || (trimmed.starts_with('(') && trimmed.ends_with(')'))
+        {
+            return Self::Sound;
+        }
+        Self::Speech
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +106,22 @@ pub struct TranscriptSegment {
     pub start_ms: u64,
     pub end_ms: u64,
     pub text: String,
+    #[serde(default)]
+    pub kind: TranscriptKind,
+}
+
+impl TranscriptSegment {
+    pub fn new(start_ms: u64, end_ms: u64, text: impl Into<String>) -> Self {
+        let text = text.into();
+        let kind = TranscriptKind::from_text(&text);
+        Self {
+            id: Uuid::new_v4().to_string(),
+            start_ms,
+            end_ms,
+            text,
+            kind,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,4 +168,3 @@ pub struct RecorderStateDto {
     pub duration_ms: u64,
     pub error: Option<String>,
 }
-

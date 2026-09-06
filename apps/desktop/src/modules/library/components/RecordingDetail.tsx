@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AudioPlayer, loadAudio, seekAudio, toggleAudio, unloadAudio } from "@/modules/audio-player";
 import { useRecorder } from "@/modules/recorder";
 import { useRecorderStore } from "@/modules/recorder/stores/recorder.store";
+import { CloseIcon } from "@/shared/components/icons";
 import { formatDateTime, formatTimestamp } from "@/shared/lib/time";
 import type { RecordingSession, SessionSummary } from "@/tauri/types";
 
@@ -178,26 +179,24 @@ export function RecordingDetail() {
       />
 
       <div className="detail-main">
-        <div className="detail-top">
-          <span />
-          <button type="button" className="ghost-link" onClick={() => void dismiss()}>
-            Close
-          </button>
-        </div>
-
         <header className="detail-header">
-          <input
-            className="detail-title"
-            value={titleDraft}
-            aria-label="Recording name"
-            onChange={(event) => setTitleDraft(event.target.value)}
-            onBlur={() => void saveTitle()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.currentTarget.blur();
-              }
-            }}
-          />
+          <div className="detail-header-bar">
+            <input
+              className="detail-title"
+              value={titleDraft}
+              aria-label="Recording name"
+              onChange={(event) => setTitleDraft(event.target.value)}
+              onBlur={() => void saveTitle()}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+            />
+            <button type="button" className="detail-close" aria-label="Close recording" onClick={() => void dismiss()}>
+              <CloseIcon size={15} />
+            </button>
+          </div>
           <p className="detail-meta">
             {formatDateTime(session.startedAt)} · {formatTimestamp(session.durationMs)}
             {captures.length > 0

@@ -1,17 +1,22 @@
 use std::path::Path;
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use reqwest::multipart::{Form, Part};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use serde_json::json;
 
 use crate::error::AppError;
 use crate::recorder::session::TranscriptSegment;
 use crate::settings::ProviderConnection;
 
-mod local;
+pub mod local;
 
 const NOVITA_ASR_MODEL_ID: &str = "zai-org/glm-asr-2512";
 const NOVITA_ASR_MODEL_NAME: &str = "GLM-ASR-2512";
+const NOVITA_ASR_URL: &str = "https://api.novita.ai/v3/glm-asr";
+const NOVITA_CHUNK_MS: u64 = 28_000;
+const NOVITA_MAX_BYTES: usize = 25 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,7 +43,7 @@ fn endpoint(kind: &str, base_url: Option<&str>) -> Result<String, AppError> {
     match kind {
         "openai" => Ok("https://api.openai.com/v1/audio/transcriptions".to_string()),
         "groq" => Ok("https://api.groq.com/openai/v1/audio/transcriptions".to_string()),
-        "novita" => Ok("https://api.novita.ai/v3/openai/audio/transcriptions".to_string()),
+        "novita" => Ok(NOVITA_ASR_URL.to_string()),
         "openai-compatible" => {
             let base = base_url
                 .map(str::trim)
@@ -72,12 +77,11 @@ fn to_segments(response: WhisperResponse) -> Vec<TranscriptSegment> {
                 if text.is_empty() {
                     return None;
                 }
-                Some(TranscriptSegment {
-                    id: Uuid::new_v4().to_string(),
-                    start_ms: (segment.start.unwrap_or(0.0) * 1000.0).max(0.0) as u64,
-                    end_ms: (segment.end.unwrap_or(0.0) * 1000.0).max(0.0) as u64,
+                Some(TranscriptSegment::new(
+                    (segment.start.unwrap_or(0.0) * 1000.0).max(0.0) as u64,
+                    (segment.end.unwrap_or(0.0) * 1000.0).max(0.0) as u64,
                     text,
-                })
+                ))
             })
             .collect();
     }
@@ -86,12 +90,7 @@ fn to_segments(response: WhisperResponse) -> Vec<TranscriptSegment> {
     if text.is_empty() {
         return Vec::new();
     }
-    vec![TranscriptSegment {
-        id: format!("segment-{index}", index = 0),
-        start_ms: 0,
-        end_ms: 0,
-        text,
-    }]
+    vec![TranscriptSegment::new(0, 0, text)]
 }
 
 fn format_api_error(status: u16, body: &str) -> String {
@@ -111,22 +110,23 @@ pub async fn transcribe_connection(
     app: &tauri::AppHandle,
     connection: &ProviderConnection,
     audio_path: &Path,
-) -> Result<Vec<TranscriptSegment>, AppError> {
+) -> Result<(Vec<TranscriptSegment>, Option<String>), AppError> {
+    let language = connection.language.as_deref().unwrap_or("auto");
     if connection.kind == "local" {
         let model = connection.model.clone();
         let path = audio_path.to_path_buf();
+        let lang = language.to_string();
         let handle = app.clone();
-        return tauri::async_runtime::spawn_blocking(move || local::transcribe(&handle, &model, &path))
+        return tauri::async_runtime::spawn_blocking(move || local::transcribe(&handle, &model, &path, &lang))
             .await
             .map_err(|error| AppError::msg(error.to_string()))?;
     }
     let api_key = crate::settings::get_secret(&connection.id, &connection.kind)?
         .ok_or_else(|| AppError::msg("Add an API key for this transcription provider."))?;
-    let language = connection.language.as_deref().unwrap_or("auto");
-    match connection.kind.as_str() {
-        "deepgram" => transcribe_deepgram(&api_key, &connection.model, language, audio_path).await,
-        "assemblyai" => transcribe_assemblyai(&api_key, language, audio_path).await,
-        "novita" => transcribe_novita(&api_key, &connection.model, language, audio_path).await,
+    let segments = match connection.kind.as_str() {
+        "deepgram" => transcribe_deepgram(&api_key, &connection.model, language, audio_path).await?,
+        "assemblyai" => transcribe_assemblyai(&api_key, language, audio_path).await?,
+        "novita" => transcribe_novita(&api_key, &connection.model, language, audio_path).await?,
         _ => {
             transcribe_url(
                 &endpoint(&connection.kind, connection.base_url.as_deref())?,
@@ -136,9 +136,15 @@ pub async fn transcribe_connection(
                 language,
                 audio_path,
             )
-            .await
+            .await?
         }
-    }
+    };
+    let detected = if language == "auto" || language.is_empty() {
+        None
+    } else {
+        Some(language.to_string())
+    };
+    Ok((segments, detected))
 }
 
 async fn transcribe_url(
@@ -188,7 +194,19 @@ async fn transcribe_url(
     Ok(segments)
 }
 
-const NOVITA_CHUNK_MS: u64 = 28_000;
+fn log_novita_asr(url: &str, status: u16, body: &str) {
+    #[cfg(debug_assertions)]
+    {
+        let clipped: String = body.chars().take(800).collect();
+        eprintln!("[novita-asr] POST {url} status={status} body={clipped}");
+    }
+}
+
+fn novita_asr_error(url: &str, status: u16, body: &str) -> AppError {
+    log_novita_asr(url, status, body);
+    let detail = format_api_error(status, body);
+    AppError::msg(format!("{detail} ({status} {url})"))
+}
 
 fn wav_chunks(path: &Path) -> Result<Vec<(u64, Vec<u8>)>, AppError> {
     let mut reader = hound::WavReader::open(path)?;
@@ -210,7 +228,11 @@ fn wav_chunks(path: &Path) -> Result<Vec<(u64, Vec<u8>)>, AppError> {
         if slice.is_empty() {
             break;
         }
-        chunks.push((offset_ms, write_wav_bytes(spec, slice)?));
+        let bytes = write_wav_bytes(spec, slice)?;
+        if bytes.len() > NOVITA_MAX_BYTES {
+            return Err(AppError::msg("Novita GLM-ASR accepts files up to 25 MB."));
+        }
+        chunks.push((offset_ms, bytes));
         offset = aligned;
         offset_ms += NOVITA_CHUNK_MS;
     }
@@ -240,6 +262,7 @@ fn merge_segments(segments: Vec<TranscriptSegment>) -> Vec<TranscriptSegment> {
             let open_ended = !previous.text.ends_with(['.', '?', '!', '。', '？', '！']);
             if close && open_ended {
                 previous.text = format!("{} {}", previous.text.trim(), segment.text.trim());
+                previous.kind = crate::recorder::session::TranscriptKind::from_text(&previous.text);
                 previous.end_ms = previous.end_ms.max(segment.end_ms);
                 continue;
             }
@@ -251,23 +274,32 @@ fn merge_segments(segments: Vec<TranscriptSegment>) -> Vec<TranscriptSegment> {
 
 async fn transcribe_novita(
     api_key: &str,
-    model: &str,
-    language: &str,
+    _model: &str,
+    _language: &str,
     audio_path: &Path,
 ) -> Result<Vec<TranscriptSegment>, AppError> {
-    let url = endpoint("novita", None)?;
     let chunks = wav_chunks(audio_path)?;
     let mut combined = Vec::new();
+    let mut prompt = String::new();
     for (offset_ms, bytes) in chunks {
-        let mut segments = transcribe_bytes(&url, api_key, "novita", model, language, bytes).await?;
-        for segment in &mut segments {
-            segment.start_ms = segment.start_ms.saturating_add(offset_ms);
-            segment.end_ms = segment.end_ms.saturating_add(offset_ms);
-            if segment.end_ms < segment.start_ms {
-                segment.end_ms = segment.start_ms;
-            }
+        let text = transcribe_glm_asr(api_key, bytes, &prompt).await?;
+        let trimmed = text.trim();
+        if trimmed.is_empty() {
+            continue;
         }
-        combined.extend(segments);
+        combined.push(TranscriptSegment::new(
+            offset_ms,
+            offset_ms.saturating_add(NOVITA_CHUNK_MS),
+            trimmed.to_string(),
+        ));
+        prompt = if prompt.is_empty() {
+            trimmed.to_string()
+        } else {
+            format!("{prompt} {trimmed}")
+        };
+        if prompt.chars().count() > 8000 {
+            prompt = prompt.chars().skip(prompt.chars().count() - 8000).collect();
+        }
     }
     let merged = merge_segments(combined);
     if merged.is_empty() {
@@ -276,44 +308,70 @@ async fn transcribe_novita(
     Ok(merged)
 }
 
-async fn transcribe_bytes(
-    url: &str,
-    api_key: &str,
-    provider: &str,
-    model: &str,
-    language: &str,
-    bytes: Vec<u8>,
-) -> Result<Vec<TranscriptSegment>, AppError> {
-    let mut form = Form::new()
-        .part(
-            "file",
-            Part::bytes(bytes)
-                .file_name("chunk.wav")
-                .mime_str("audio/wav")
-                .map_err(|error| AppError::msg(error.to_string()))?,
-        )
-        .text("model", default_model(provider, model));
-    if !language.is_empty() && language != "auto" {
-        form = form.text("language", language.to_string());
+fn glm_asr_text(body: &str) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_str(body).ok()?;
+    value
+        .get("text")
+        .or_else(|| value.pointer("/data/text"))
+        .or_else(|| value.pointer("/result/text"))
+        .and_then(|item| item.as_str())
+        .map(|text| text.trim().to_string())
+        .filter(|text| !text.is_empty())
+}
+
+async fn transcribe_glm_asr(api_key: &str, bytes: Vec<u8>, prompt: &str) -> Result<String, AppError> {
+    if bytes.len() > NOVITA_MAX_BYTES {
+        return Err(AppError::msg("Novita GLM-ASR accepts files up to 25 MB."));
+    }
+    let encoded = STANDARD.encode(&bytes);
+    let mut body = json!({
+        "model": NOVITA_ASR_MODEL_NAME,
+        "file": format!("data:audio/wav;base64,{encoded}"),
+    });
+    if !prompt.trim().is_empty() {
+        body["prompt"] = json!(prompt);
     }
     let response = reqwest::Client::new()
-        .post(url)
+        .post(NOVITA_ASR_URL)
+        .header("Content-Type", "application/json")
         .bearer_auth(api_key.trim())
-        .multipart(form)
+        .json(&body)
         .send()
         .await?;
     let status = response.status();
     let body = response.text().await?;
-    if !status.is_success() {
-        return Err(AppError::msg(format_api_error(status.as_u16(), &body)));
+    log_novita_asr(NOVITA_ASR_URL, status.as_u16(), &body);
+    if status.is_success() {
+        return glm_asr_text(&body).ok_or_else(|| AppError::msg("Novita returned no text."));
     }
-    let parsed: WhisperResponse = serde_json::from_str(&body).unwrap_or(WhisperResponse {
-        text: serde_json::from_str::<serde_json::Value>(&body)
-            .ok()
-            .and_then(|value| value.get("text")?.as_str().map(|text| text.to_string())),
-        segments: Vec::new(),
+    if matches!(status.as_u16(), 400 | 422) {
+        return transcribe_glm_asr_raw(api_key, encoded, prompt).await;
+    }
+    Err(novita_asr_error(NOVITA_ASR_URL, status.as_u16(), &body))
+}
+
+async fn transcribe_glm_asr_raw(api_key: &str, encoded: String, prompt: &str) -> Result<String, AppError> {
+    let mut body = json!({
+        "model": NOVITA_ASR_MODEL_NAME,
+        "file": encoded,
     });
-    Ok(to_segments(parsed))
+    if !prompt.trim().is_empty() {
+        body["prompt"] = json!(prompt);
+    }
+    let response = reqwest::Client::new()
+        .post(NOVITA_ASR_URL)
+        .header("Content-Type", "application/json")
+        .bearer_auth(api_key.trim())
+        .json(&body)
+        .send()
+        .await?;
+    let status = response.status();
+    let body = response.text().await?;
+    log_novita_asr(NOVITA_ASR_URL, status.as_u16(), &body);
+    if !status.is_success() {
+        return Err(novita_asr_error(NOVITA_ASR_URL, status.as_u16(), &body));
+    }
+    glm_asr_text(&body).ok_or_else(|| AppError::msg("Novita returned no text."))
 }
 
 pub async fn test_connection(connection: &ProviderConnection) -> Result<(), AppError> {
@@ -346,6 +404,7 @@ pub async fn test_credentials(kind: &str, api_key: &str, base_url: Option<&str>)
             .await
         }
         "assemblyai" => test_header("https://api.assemblyai.com/v2/account", api_key.trim()).await,
+        "novita" => test_novita_asr(api_key.trim()).await,
         _ => {
             let models = endpoint(kind, base_url)?.replace("/audio/transcriptions", "/models");
             test_bearer(&models, api_key.trim()).await
@@ -363,6 +422,43 @@ async fn test_header(url: &str, authorization: &str) -> Result<(), AppError> {
         return Err(AppError::msg("Could not reach this transcription provider."));
     }
     Ok(())
+}
+
+fn silent_wav() -> Vec<u8> {
+    write_wav_bytes(
+        hound::WavSpec {
+            channels: 1,
+            sample_rate: 16_000,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        },
+        &[0; 1600],
+    )
+    .unwrap_or_default()
+}
+
+async fn test_novita_asr(api_key: &str) -> Result<(), AppError> {
+    let encoded = STANDARD.encode(silent_wav());
+    let response = reqwest::Client::new()
+        .post(NOVITA_ASR_URL)
+        .header("Content-Type", "application/json")
+        .bearer_auth(api_key)
+        .json(&json!({
+            "model": NOVITA_ASR_MODEL_NAME,
+            "file": format!("data:audio/wav;base64,{encoded}"),
+        }))
+        .send()
+        .await?;
+    let status = response.status();
+    let body = response.text().await?;
+    log_novita_asr(NOVITA_ASR_URL, status.as_u16(), &body);
+    if status.is_success() || matches!(status.as_u16(), 400 | 422) {
+        return Ok(());
+    }
+    if matches!(status.as_u16(), 401 | 403) {
+        return Err(AppError::msg("Novita rejected this API key."));
+    }
+    Err(novita_asr_error(NOVITA_ASR_URL, status.as_u16(), &body))
 }
 
 async fn test_bearer(url: &str, api_key: &str) -> Result<(), AppError> {
@@ -384,80 +480,9 @@ fn documented_novita_asr() -> TranscriptionModel {
     }
 }
 
-fn is_asr_model(id: &str) -> bool {
-    let id = id.to_lowercase();
-    id.contains("asr")
-        || id.contains("whisper")
-        || id.contains("transcribe")
-        || id.contains("speech-to-text")
-        || id.contains("speech_to_text")
-}
-
-fn asr_model_name(id: &str, item: &serde_json::Value) -> String {
-    if id.ends_with("glm-asr-2512") {
-        return NOVITA_ASR_MODEL_NAME.to_string();
-    }
-    item.get("display_name")
-        .or_else(|| item.get("displayName"))
-        .or_else(|| item.get("name"))
-        .and_then(|value| value.as_str())
-        .map(|value| value.to_string())
-        .unwrap_or_else(|| id.rsplit('/').next().unwrap_or(id).to_string())
-}
-
-async fn list_novita_asr(api_key: &str) -> Vec<TranscriptionModel> {
-    let documented = documented_novita_asr();
-    if api_key.trim().is_empty() {
-        return vec![documented];
-    }
-    let response = reqwest::Client::new()
-        .get("https://api.novita.ai/v3/openai/models")
-        .bearer_auth(api_key.trim())
-        .send()
-        .await;
-    let Ok(response) = response else {
-        return vec![documented];
-    };
-    let Ok(body) = response.text().await else {
-        return vec![documented];
-    };
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(&body) else {
-        return vec![documented];
-    };
-    let rows = value
-        .get("data")
-        .or_else(|| value.get("models"))
-        .and_then(|item| item.as_array())
-        .cloned()
-        .unwrap_or_default();
-    let mut models: Vec<TranscriptionModel> = rows
-        .into_iter()
-        .filter_map(|item| {
-            let id = item.get("id").and_then(|value| value.as_str())?.trim().to_string();
-            if id.is_empty() || !is_asr_model(&id) {
-                return None;
-            }
-            Some(TranscriptionModel {
-                name: asr_model_name(&id, &item),
-                id,
-            })
-        })
-        .collect();
-    if !models.iter().any(|item| item.id == documented.id) {
-        models.insert(0, documented.clone());
-    }
-    models.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
-    models.dedup_by(|left, right| left.id == right.id);
-    if models.is_empty() {
-        vec![documented]
-    } else {
-        models
-    }
-}
-
-pub async fn list_models(kind: &str, api_key: &str, _base_url: Option<&str>) -> Vec<TranscriptionModel> {
+pub async fn list_models(kind: &str, _api_key: &str, _base_url: Option<&str>) -> Vec<TranscriptionModel> {
     if kind == "novita" {
-        return list_novita_asr(api_key).await;
+        return vec![documented_novita_asr()];
     }
     Vec::new()
 }
@@ -505,12 +530,11 @@ async fn transcribe_deepgram(
         if text.is_empty() {
             continue;
         }
-        segments.push(TranscriptSegment {
-            id: Uuid::new_v4().to_string(),
-            start_ms: (item.get("start").and_then(|value| value.as_f64()).unwrap_or(0.0) * 1000.0) as u64,
-            end_ms: (item.get("end").and_then(|value| value.as_f64()).unwrap_or(0.0) * 1000.0) as u64,
+        segments.push(TranscriptSegment::new(
+            (item.get("start").and_then(|value| value.as_f64()).unwrap_or(0.0) * 1000.0) as u64,
+            (item.get("end").and_then(|value| value.as_f64()).unwrap_or(0.0) * 1000.0) as u64,
             text,
-        });
+        ));
     }
     if segments.is_empty() {
         if let Some(text) = value
@@ -518,12 +542,7 @@ async fn transcribe_deepgram(
             .and_then(|item| item.as_str())
         {
             if !text.trim().is_empty() {
-                segments.push(TranscriptSegment {
-                    id: Uuid::new_v4().to_string(),
-                    start_ms: 0,
-                    end_ms: 0,
-                    text: text.trim().to_string(),
-                });
+                segments.push(TranscriptSegment::new(0, 0, text.trim().to_string()));
             }
         }
     }
@@ -611,33 +630,18 @@ async fn transcribe_assemblyai(
                 current.push_str(token);
                 end_ms = word_end;
                 if token.ends_with('.') || token.ends_with('?') || token.ends_with('!') {
-                    segments.push(TranscriptSegment {
-                        id: Uuid::new_v4().to_string(),
-                        start_ms,
-                        end_ms,
-                        text: current.trim().to_string(),
-                    });
+                    segments.push(TranscriptSegment::new(start_ms, end_ms, current.trim().to_string()));
                     current.clear();
                 }
             }
             if !current.trim().is_empty() {
-                segments.push(TranscriptSegment {
-                    id: Uuid::new_v4().to_string(),
-                    start_ms,
-                    end_ms,
-                    text: current.trim().to_string(),
-                });
+                segments.push(TranscriptSegment::new(start_ms, end_ms, current.trim().to_string()));
             }
         }
         if segments.is_empty() {
             if let Some(text) = body.get("text").and_then(|item| item.as_str()) {
                 if !text.trim().is_empty() {
-                    segments.push(TranscriptSegment {
-                        id: Uuid::new_v4().to_string(),
-                        start_ms: 0,
-                        end_ms: 0,
-                        text: text.trim().to_string(),
-                    });
+                    segments.push(TranscriptSegment::new(0, 0, text.trim().to_string()));
                 }
             }
         }

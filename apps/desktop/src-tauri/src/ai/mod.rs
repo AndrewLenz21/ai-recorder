@@ -34,7 +34,7 @@ struct ChatError {
 
 fn openai_base(kind: &str, base_url: Option<&str>) -> Result<String, AppError> {
     match kind {
-        "novita" => Ok("https://api.novita.ai/v3/openai".to_string()),
+        "novita" => Ok("https://api.novita.ai/openai/v1".to_string()),
         "openai" => Ok("https://api.openai.com/v1".to_string()),
         "groq" => Ok("https://api.groq.com/openai/v1".to_string()),
         "xai" => Ok("https://api.x.ai/v1".to_string()),

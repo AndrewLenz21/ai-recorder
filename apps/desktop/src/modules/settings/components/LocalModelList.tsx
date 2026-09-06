@@ -1,4 +1,4 @@
-import { CheckIcon, DownloadIcon } from "@/shared/components/icons";
+import { CheckIcon, DownloadIcon, TrashIcon } from "@/shared/components/icons";
 import { formatBytes } from "@/shared/lib/time";
 import type { LocalModel } from "@/tauri/commands/settings";
 
@@ -27,6 +27,7 @@ export function LocalModelList({
   onSelect,
   onDownload,
   onUse,
+  onRemove,
 }: Props) {
   return (
     <ul className="model-row-list">
@@ -75,16 +76,29 @@ export function LocalModelList({
                     </svg>
                   </span>
                 ) : model.installed ? (
-                  <button
-                    type="button"
-                    className="model-download is-ready"
-                    aria-label={onUse ? "Use as default" : "Downloaded"}
-                    disabled={!onUse}
-                    onClick={() => onUse?.(model.id)}
-                  >
-                    <CheckIcon size={16} />
-                    <span>{onUse ? "Use as default" : "Downloaded"}</span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="model-download is-ready"
+                      aria-label={onUse ? "Use as default" : "Downloaded"}
+                      disabled={!onUse}
+                      onClick={() => onUse?.(model.id)}
+                    >
+                      <CheckIcon size={16} />
+                      <span>{onUse ? "Use as default" : "Installed"}</span>
+                    </button>
+                    {onRemove ? (
+                      <button
+                        type="button"
+                        className="model-download"
+                        aria-label="Remove model"
+                        onClick={() => onRemove(model.id)}
+                      >
+                        <TrashIcon size={16} />
+                        <span>Remove</span>
+                      </button>
+                    ) : null}
+                  </>
                 ) : onDownload ? (
                   <button
                     type="button"

@@ -91,6 +91,10 @@ impl RecorderEngine {
             directory: path_to_string(&directory),
             events: Vec::new(),
             transcript: None,
+            transcript_provider: None,
+            transcript_model: None,
+            transcript_language: None,
+            transcript_history: Vec::new(),
             summary: None,
         };
         session.events.push(RecordingEvent::RecordingStarted {

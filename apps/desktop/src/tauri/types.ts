@@ -45,11 +45,23 @@ export type RecordingEvent =
       fileName: string;
     };
 
+export type TranscriptKind = "speech" | "music" | "sound";
+
 export type TranscriptSegment = {
   id: string;
   startMs: number;
   endMs: number;
   text: string;
+  kind?: TranscriptKind;
+};
+
+export type TranscriptRun = {
+  id: string;
+  createdAt: string;
+  provider: string;
+  model: string;
+  language?: string | null;
+  segments: TranscriptSegment[];
 };
 
 export type RecordingSession = {
@@ -65,6 +77,10 @@ export type RecordingSession = {
   directory: string;
   events: RecordingEvent[];
   transcript?: TranscriptSegment[] | null;
+  transcriptProvider?: string | null;
+  transcriptModel?: string | null;
+  transcriptLanguage?: string | null;
+  transcriptHistory?: TranscriptRun[];
   summary?: string | null;
 };
 

@@ -1,4 +1,4 @@
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 use crate::ai;
 use crate::error::AppError;
@@ -172,26 +172,99 @@ pub async fn settings_download_local_model(app: AppHandle, model_id: String) -> 
 }
 
 #[tauri::command]
+pub async fn settings_download_whisper_runtime(app: AppHandle) -> Result<SettingsDto, AppError> {
+    settings::download_runtime(app).await
+}
+
+#[tauri::command]
 pub fn settings_remove_local_model(app: AppHandle, model_id: String) -> Result<SettingsDto, AppError> {
     settings::remove_model(&app, model_id)
 }
 
+fn archive_transcript(session: &mut crate::recorder::session::RecordingSession) {
+    let Some(segments) = session.transcript.take() else {
+        return;
+    };
+    if segments.is_empty() {
+        session.transcript = Some(segments);
+        return;
+    }
+    session.transcript_history.insert(
+        0,
+        crate::recorder::session::TranscriptRun {
+            id: uuid::Uuid::new_v4().to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            provider: session.transcript_provider.clone().unwrap_or_else(|| "Unknown".to_string()),
+            model: session.transcript_model.clone().unwrap_or_default(),
+            language: session.transcript_language.clone(),
+            segments,
+        },
+    );
+    session.transcript_history.truncate(8);
+}
+
 #[tauri::command]
-pub async fn recorder_transcribe(app: AppHandle, id: String) -> Result<RecordingSession, AppError> {
+pub async fn recorder_transcribe(
+    app: AppHandle,
+    id: String,
+    provider_id: Option<String>,
+    model: Option<String>,
+) -> Result<RecordingSession, AppError> {
+    let _ = app.emit("transcription:stage", "preparing");
     let settings = settings::read_settings(&app)?;
-    let connection = settings::default_connection(&settings, ProviderCapability::Transcription)
-        .cloned()
-        .ok_or_else(|| AppError::msg("Connect a transcription provider in Settings."))?;
+    let mut connection = if let Some(provider_id) = provider_id {
+        settings
+            .connections
+            .iter()
+            .find(|item| item.id == provider_id)
+            .cloned()
+            .ok_or_else(|| AppError::msg("Transcription provider not found."))?
+    } else {
+        settings::default_connection(&settings, ProviderCapability::Transcription)
+            .cloned()
+            .ok_or_else(|| AppError::msg("Connect a transcription provider in Settings."))?
+    };
+    if let Some(model) = model.filter(|value| !value.trim().is_empty()) {
+        connection.model = model;
+    }
     let root = storage::recordings_dir(&app)?;
     let session = storage::read_session(&root, &id)?;
     let audio = session
         .audio_file
         .as_ref()
         .ok_or_else(|| AppError::msg("This recording has no audio."))?;
-    let segments =
+    let _ = app.emit("transcription:stage", "transcribing");
+    let (segments, language) =
         transcription::transcribe_connection(&app, &connection, std::path::Path::new(audio)).await?;
+    let _ = app.emit("transcription:stage", "timestamps");
+    let provider = connection.display_name.clone();
+    let model = connection.model.clone();
     storage::update_session(&root, &id, |session| {
+        archive_transcript(session);
         session.transcript = Some(segments);
+        session.transcript_provider = Some(provider);
+        session.transcript_model = Some(model);
+        session.transcript_language = language;
+    })
+}
+
+#[tauri::command]
+pub fn recorder_restore_transcript(app: AppHandle, id: String, run_id: String) -> Result<RecordingSession, AppError> {
+    let root = storage::recordings_dir(&app)?;
+    storage::update_session(&root, &id, |session| {
+        let position = session
+            .transcript_history
+            .iter()
+            .position(|item| item.id == run_id);
+        let Some(position) = position else {
+            return;
+        };
+        let run = session.transcript_history.remove(position);
+        archive_transcript(session);
+        session.transcript = Some(run.segments);
+        session.transcript_provider = Some(run.provider);
+        session.transcript_model = Some(run.model);
+        session.transcript_language = run.language;
     })
 }
 

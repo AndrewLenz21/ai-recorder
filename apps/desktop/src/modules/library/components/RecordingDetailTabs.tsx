@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { seekAudio } from "@/modules/audio-player";
 import { providerModelLabel } from "@/modules/settings/catalog";
@@ -13,7 +13,7 @@ import { useRecorder } from "@/modules/recorder";
 
 import { ScreenshotsTab } from "./ScreenshotsTab";
 import { SummaryTab } from "./SummaryTab";
-import { TranscriptTab } from "./TranscriptTab";
+import { TranscriptTab, type TranscriptChoice } from "./TranscriptTab";
 
 type CaptureEvent = Extract<RecordingEvent, { type: "screenCapture" }>;
 
@@ -41,10 +41,17 @@ function sendToNotion() {
 }
 
 function defaultConnection(settings: AppSettings | null, capability: "transcription" | "ai"): ProviderConnection | undefined {
-  return (
-    settings?.connections.find((item) => item.capability === capability && item.isDefault) ??
-    settings?.connections.find((item) => item.capability === capability)
+  const rows = (settings?.connections.filter((item) => item.capability === capability) ?? []).filter(
+    (item) => capability !== "transcription" || item.type !== "novita",
   );
+  const marked = rows.find((item) => item.isDefault);
+  if (capability === "transcription" && marked?.type === "local") {
+    const cloud = rows.find((item) => item.type !== "local" && item.hasCredential);
+    if (cloud) {
+      return cloud;
+    }
+  }
+  return marked ?? rows[0];
 }
 
 export function RecordingDetailTabs({
@@ -63,8 +70,8 @@ export function RecordingDetailTabs({
   const [summaryStatus, setSummaryStatus] = useState<"idle" | "loading" | "ready" | "error">(
     session.summary ? "ready" : "idle",
   );
-  const [transcriptError, setTranscriptError] = useState<string | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [choice, setChoice] = useState<TranscriptChoice | null>(null);
 
   const transcription = defaultConnection(settings, "transcription");
   const ai = defaultConnection(settings, "ai");
@@ -88,18 +95,61 @@ export function RecordingDetailTabs({
   };
   const segments = session.transcript ?? [];
   const hasTranscript = segments.length > 0;
+  const choices = useMemo<TranscriptChoice[]>(() => {
+    if (!settings) {
+      return [];
+    }
+    const rows: TranscriptChoice[] = [];
+    for (const connection of settings.connections) {
+      if (connection.capability !== "transcription" || connection.type === "novita") {
+        continue;
+      }
+      if (connection.type === "local") {
+        for (const model of settings.localModels.filter((item) => item.installed)) {
+          rows.push({
+            connectionId: connection.id,
+            model: model.id,
+            label: `Local · Whisper ${model.label}`,
+          });
+        }
+        continue;
+      }
+      if (!connection.hasCredential) {
+        continue;
+      }
+      rows.push({
+        connectionId: connection.id,
+        model: connection.model,
+        label: `${connection.displayName} · ${providerModelLabel("transcription", connection.type, connection.model)}`,
+      });
+    }
+    return rows;
+  }, [settings]);
+  const selected =
+    choice ??
+    choices.find((item) => item.connectionId === transcription?.id && item.model === transcription.model) ??
+    choices[0] ??
+    null;
 
   const transcribe = async () => {
     setTranscriptStatus("transcribing");
-    setTranscriptError(null);
     try {
-      const updated = await settingsService.transcribe(session.id);
+      const updated = await settingsService.transcribe(session.id, selected?.connectionId, selected?.model);
       onSessionUpdate(updated);
       setTranscriptStatus("ready");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setTranscriptError(message);
-      setTranscriptStatus("error");
+      setTranscriptStatus(hasTranscript ? "ready" : "empty");
+      showToast("error", "Transcription failed", message);
+    }
+  };
+
+  const restore = async (runId: string) => {
+    try {
+      onSessionUpdate(await settingsService.restoreTranscript(session.id, runId));
+      setTranscriptStatus("ready");
+    } catch (error) {
+      showToast("error", error instanceof Error ? error.message : String(error));
     }
   };
 
@@ -124,14 +174,20 @@ export function RecordingDetailTabs({
     transcript: (
       <TranscriptTab
         segments={segments}
-        status={hasTranscript ? "ready" : transcriptStatus}
+        captures={captures}
+        status={transcriptStatus === "transcribing" && !hasTranscript ? "transcribing" : hasTranscript ? "ready" : transcriptStatus}
+        busy={transcriptStatus === "transcribing"}
         configured={transcriptionConfigured}
         providerLabel={providerLabel}
-        error={transcriptError}
+        choices={choices}
+        selected={selected}
+        history={session.transcriptHistory ?? []}
         onSeek={seekAudio}
+        onCaptureSelect={onSelectCapture}
+        onSelectChoice={setChoice}
         onTranscribe={() => void transcribe()}
+        onRestore={(runId) => void restore(runId)}
         onConfigure={() => openSettings("transcription")}
-        onSendToNotion={sendToNotion}
       />
     ),
     summary: (

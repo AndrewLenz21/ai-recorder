@@ -32,9 +32,14 @@ export type LocalModel = {
   recommended: boolean;
 };
 
+export type LocalRuntime = {
+  installed: boolean;
+};
+
 export type AppSettings = {
   connections: ProviderConnection[];
   localModels: LocalModel[];
+  localRuntime: LocalRuntime;
 };
 
 export const settingsCommands = {
@@ -106,8 +111,16 @@ export const settingsCommands = {
   refreshTranscriptionModels: (id: string) =>
     invokeCommand<AiModel[]>("settings_refresh_transcription_models", { id }),
   downloadModel: (modelId: string) => invokeCommand<AppSettings>("settings_download_local_model", { modelId }),
+  downloadRuntime: () => invokeCommand<AppSettings>("settings_download_whisper_runtime"),
   removeModel: (modelId: string) => invokeCommand<AppSettings>("settings_remove_local_model", { modelId }),
-  transcribe: (id: string) => invokeCommand<RecordingSession>("recorder_transcribe", { id }),
+  transcribe: (id: string, providerId?: string | null, model?: string | null) =>
+    invokeCommand<RecordingSession>("recorder_transcribe", {
+      id,
+      providerId: providerId ?? null,
+      model: model ?? null,
+    }),
+  restoreTranscript: (id: string, runId: string) =>
+    invokeCommand<RecordingSession>("recorder_restore_transcript", { id, runId }),
   generateSummary: (id: string) => invokeCommand<RecordingSession>("recorder_generate_summary", { id }),
   hasSecret: (providerId: string) => invokeCommand<boolean>("credentials_has", { providerId }),
   deleteSecret: (providerId: string) => invokeCommand<void>("credentials_delete", { providerId }),

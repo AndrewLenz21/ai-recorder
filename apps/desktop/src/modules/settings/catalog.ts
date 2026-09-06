@@ -15,6 +15,7 @@ export type ProviderCatalogItem = {
   needsBaseUrl: boolean;
   allowCustomModel?: boolean;
   discoverModels?: boolean;
+  hidden?: boolean;
   models: ProviderModel[];
 };
 
@@ -39,11 +40,12 @@ export const TRANSCRIPTION_PROVIDERS: ProviderCatalogItem[] = [
   {
     type: "novita",
     name: "Novita AI",
-    description: "Cloud · Multilingual",
+    description: "Experimental · ASR route unavailable",
     group: "Cloud",
     needsKey: true,
     needsBaseUrl: false,
     discoverModels: true,
+    hidden: true,
     models: [{ id: "zai-org/glm-asr-2512", label: "GLM-ASR-2512" }],
   },
   {
@@ -213,7 +215,8 @@ export const LOCAL_MODEL_BLURBS: Record<string, string> = {
 };
 
 export function catalogFor(capability: ProviderCapability) {
-  return capability === "transcription" ? TRANSCRIPTION_PROVIDERS : AI_PROVIDERS;
+  const items = capability === "transcription" ? TRANSCRIPTION_PROVIDERS : AI_PROVIDERS;
+  return items.filter((item) => !item.hidden);
 }
 
 export function catalogItem(capability: ProviderCapability, type: string) {

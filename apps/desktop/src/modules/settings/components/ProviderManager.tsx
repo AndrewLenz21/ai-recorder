@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 
-import { GearIcon, NotesIcon, PlusIcon, SparkleIcon } from "@/shared/components/icons";
+import { CheckIcon, DownloadIcon, GearIcon, NotesIcon, PlusIcon, SparkleIcon } from "@/shared/components/icons";
 import { showToast } from "@/shared/stores/toast.store";
 import type { AppSettings, ProviderCapability, ProviderConnection } from "@/tauri/commands/settings";
 
@@ -20,7 +20,9 @@ type Props = {
 type Progress = { id: string; received: number; total: number };
 
 export function ProviderManager({ capability, settings, onChange }: Props) {
-  const connections = settings.connections.filter((item) => item.capability === capability);
+  const connections = settings.connections.filter(
+    (item) => item.capability === capability && (capability !== "transcription" || item.type !== "novita"),
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [draft, setDraft] = useState<ProviderCatalogItem | null>(null);
   const [editing, setEditing] = useState<ProviderConnection | null>(null);
@@ -153,6 +155,61 @@ export function ProviderManager({ capability, settings, onChange }: Props) {
 
       {capability === "transcription" ? (
         <div>
+          <p className="folder-field-label">Local runtime</p>
+          <div className="model-row-list">
+            <div className="model-row">
+              <div className="model-row-copy">
+                <strong>Whisper.cpp</strong>
+                <span>{settings.localRuntime.installed ? "Installed · Ready for offline transcription" : "Required to transcribe offline"}</span>
+              </div>
+              <div className="model-row-actions">
+                {progress?.id === "runtime" || busyId === "runtime" ? (
+                  <span className="model-download-progress" aria-label="Downloading Whisper.cpp">
+                    <svg viewBox="0 0 32 32" aria-hidden="true">
+                      <circle cx="16" cy="16" r="13" />
+                      <circle
+                        cx="16"
+                        cy="16"
+                        r="13"
+                        style={{
+                          strokeDashoffset:
+                            progress?.id === "runtime" && progress.total > 0
+                              ? 81.68 - (81.68 * Math.min(100, Math.round((progress.received / progress.total) * 100))) / 100
+                              : 40,
+                        }}
+                      />
+                    </svg>
+                  </span>
+                ) : settings.localRuntime.installed ? (
+                  <button type="button" className="model-download is-ready" aria-label="Installed" disabled>
+                    <CheckIcon size={16} />
+                    <span>Installed</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="model-download"
+                    aria-label="Download Whisper.cpp"
+                    onClick={() => {
+                      setBusyId("runtime");
+                      void settingsService
+                        .downloadRuntime()
+                        .then(onChange)
+                        .then(() => showToast("success", "Whisper.cpp is ready"))
+                        .catch((error) => showToast("error", error instanceof Error ? error.message : String(error)))
+                        .finally(() => {
+                          setBusyId(null);
+                          setProgress(null);
+                        });
+                    }}
+                  >
+                    <DownloadIcon size={16} />
+                    <span>Download</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
           <p className="folder-field-label">Local models</p>
           <LocalModelList
             models={settings.localModels}

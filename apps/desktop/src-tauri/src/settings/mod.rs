@@ -89,9 +89,16 @@ pub struct LocalModelDto {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct LocalRuntimeDto {
+    pub installed: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SettingsDto {
     pub connections: Vec<ProviderConnectionDto>,
     pub local_models: Vec<LocalModelDto>,
+    pub local_runtime: LocalRuntimeDto,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -118,6 +125,10 @@ pub fn models_dir(app: &AppHandle) -> Result<PathBuf, AppError> {
     let dir = app_data_dir(app)?.join("models").join("whisper");
     fs::create_dir_all(&dir)?;
     Ok(dir)
+}
+
+fn model_file_ready(path: &Path) -> bool {
+    fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.len() > 1024)
 }
 
 fn read_json<T: for<'de> Deserialize<'de> + Default>(path: &Path) -> Result<T, AppError> {
@@ -264,7 +275,7 @@ pub fn local_models(app: &AppHandle) -> Result<Vec<LocalModelDto>, AppError> {
             label: (*label).to_string(),
             filename: (*filename).to_string(),
             bytes: *bytes,
-            installed: dir.join(filename).exists(),
+            installed: model_file_ready(&dir.join(filename)),
             recommended: *recommended,
         })
         .collect())
@@ -275,23 +286,44 @@ pub fn dto(app: &AppHandle) -> Result<SettingsDto, AppError> {
     Ok(SettingsDto {
         connections: settings.connections.iter().map(to_dto).collect(),
         local_models: local_models(app)?,
+        local_runtime: LocalRuntimeDto {
+            installed: crate::transcription::local::runtime_available_for(app),
+        },
     })
+}
+
+fn transcription_kind_enabled(kind: &str) -> bool {
+    kind != "novita"
 }
 
 pub fn default_connection(
     settings: &SettingsFile,
     capability: ProviderCapability,
 ) -> Option<&ProviderConnection> {
-    settings
+    let usable = |item: &&ProviderConnection| {
+        item.capability == capability
+            && (capability != ProviderCapability::Transcription || transcription_kind_enabled(&item.kind))
+    };
+    let marked = settings
         .connections
         .iter()
-        .find(|item| item.capability == capability && item.is_default)
-        .or_else(|| {
-            settings
-                .connections
-                .iter()
-                .find(|item| item.capability == capability)
-        })
+        .find(|item| usable(item) && item.is_default);
+    if capability == ProviderCapability::Transcription && marked.is_some_and(|item| item.kind == "local") {
+        if let Some(cloud) = settings.connections.iter().find(|item| {
+            usable(&item) && item.kind != "local" && has_secret(&item.id, &item.kind)
+        }) {
+            return Some(cloud);
+        }
+    }
+    marked.or_else(|| settings.connections.iter().find(usable))
+}
+
+fn mark_default(settings: &mut SettingsFile, capability: ProviderCapability, id: &str) {
+    for item in &mut settings.connections {
+        if item.capability == capability {
+            item.is_default = item.id == id;
+        }
+    }
 }
 
 pub fn connect(
@@ -305,6 +337,9 @@ pub fn connect(
     api_key: Option<String>,
     enabled_models: Option<Vec<String>>,
 ) -> Result<SettingsDto, AppError> {
+    if capability == ProviderCapability::Transcription && !transcription_kind_enabled(&kind) {
+        return Err(AppError::msg("Novita transcription is unavailable while the ASR route returns 404."));
+    }
     let mut settings = read_settings(app)?;
     let needs_key = kind != "local";
     let key = api_key.as_deref().map(str::trim).filter(|value| !value.is_empty());
@@ -321,13 +356,18 @@ pub fn connect(
         } else if needs_key && !has_secret(&id, &kind) {
             return Err(AppError::msg("Add an API key to connect this provider."));
         }
-        let connection = &mut settings.connections[index];
-        connection.display_name = display_name;
-        connection.model = model;
-        connection.base_url = normalize_optional(base_url);
-        connection.language = normalize_optional(language);
-        if let Some(models) = enabled_models {
-            connection.enabled_models = models;
+        {
+            let connection = &mut settings.connections[index];
+            connection.display_name = display_name;
+            connection.model = model;
+            connection.base_url = normalize_optional(base_url);
+            connection.language = normalize_optional(language);
+            if let Some(models) = enabled_models {
+                connection.enabled_models = models;
+            }
+        }
+        if kind != "local" {
+            mark_default(&mut settings, capability, &id);
         }
         if needs_key && !has_secret(&id, &kind) {
             return Err(AppError::msg("Could not save the API key in the system keychain."));
@@ -348,15 +388,18 @@ pub fn connect(
     }
     settings.connections.push(ProviderConnection {
         id: id.clone(),
-        capability,
+        capability: capability.clone(),
         kind: kind.clone(),
         display_name,
         model,
-        is_default: !same,
+        is_default: kind != "local" || !same,
         base_url: normalize_optional(base_url),
         language: normalize_optional(language),
         enabled_models: enabled_models.unwrap_or_default(),
     });
+    if kind != "local" {
+        mark_default(&mut settings, capability, &id);
+    }
     if needs_key && !has_secret(&id, &kind) {
         return Err(AppError::msg("Could not save the API key in the system keychain."));
     }
@@ -488,7 +531,7 @@ pub async fn download_model(app: AppHandle, model_id: String) -> Result<Settings
         .find(|(id, ..)| *id == model_id)
         .ok_or_else(|| AppError::msg("Unknown local model."))?;
     let path = models_dir(&app)?.join(info.2);
-    if path.exists() {
+    if model_file_ready(&path) {
         return dto(&app);
     }
     let url = format!(
@@ -521,10 +564,35 @@ pub async fn download_model(app: AppHandle, model_id: String) -> Result<Settings
     dto(&app)
 }
 
+pub async fn download_runtime(app: AppHandle) -> Result<SettingsDto, AppError> {
+    crate::transcription::local::download_runtime(app.clone()).await?;
+    dto(&app)
+}
+
 pub fn remove_model(app: &AppHandle, model_id: String) -> Result<SettingsDto, AppError> {
     let path = model_path(app, &model_id)?;
     if path.exists() {
-        fs::remove_file(path)?;
+        fs::remove_file(&path)?;
     }
+    let partial = path.with_extension("bin.partial");
+    if partial.exists() {
+        let _ = fs::remove_file(partial);
+    }
+    let mut settings = read_settings(app)?;
+    let remaining = LOCAL_MODELS
+        .iter()
+        .filter_map(|(id, _, filename, ..)| {
+            if *id == model_id {
+                return None;
+            }
+            model_file_ready(&models_dir(app).ok()?.join(filename)).then(|| (*id).to_string())
+        })
+        .collect::<Vec<_>>();
+    for connection in &mut settings.connections {
+        if connection.kind == "local" && connection.model == model_id {
+            connection.model = remaining.first().cloned().unwrap_or_else(|| "small".to_string());
+        }
+    }
+    save_settings(app, &settings)?;
     dto(app)
 }

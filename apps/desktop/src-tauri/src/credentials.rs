@@ -6,6 +6,9 @@ use serde::Deserialize;
 
 use crate::error::AppError;
 
+#[cfg(target_os = "macos")]
+mod macos;
+
 const SERVICE: &str = "com.ai.recorder";
 
 fn account(provider_id: &str) -> String {
@@ -29,18 +32,37 @@ fn save_named(account: &str, api_key: &str) -> Result<(), AppError> {
     if value.is_empty() {
         return Err(AppError::msg("API key is empty."));
     }
-    let item = named_entry(account)?;
-    item.set_password(value)?;
-    let stored = item.get_password()?;
-    if stored != value {
-        return Err(AppError::msg("Could not persist the API key in the system keychain."));
+    #[cfg(target_os = "macos")]
+    {
+        return macos::save(account, value);
     }
-    Ok(())
+    #[cfg(not(target_os = "macos"))]
+    {
+        let item = named_entry(account)?;
+        item.set_password(value)?;
+        let stored = item.get_password()?;
+        if stored != value {
+            return Err(AppError::msg("Could not persist the API key in the system keychain."));
+        }
+        Ok(())
+    }
 }
 
 fn get_named(account: &str) -> Result<Option<String>, AppError> {
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(value) = macos::get(account)? {
+            return Ok(Some(value));
+        }
+    }
     match named_entry(account)?.get_password() {
-        Ok(value) if !value.trim().is_empty() => Ok(Some(value)),
+        Ok(value) if !value.trim().is_empty() => {
+            #[cfg(target_os = "macos")]
+            {
+                let _ = macos::save(account, &value);
+            }
+            Ok(Some(value))
+        }
         Ok(_) => Ok(None),
         Err(keyring::Error::NoEntry) => Ok(None),
         Err(error) => Err(error.into()),
@@ -48,11 +70,28 @@ fn get_named(account: &str) -> Result<Option<String>, AppError> {
 }
 
 fn delete_named(account: &str) -> Result<(), AppError> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::delete(account)?;
+    }
     match named_entry(account)?.delete_credential() {
         Ok(()) => Ok(()),
         Err(keyring::Error::NoEntry) => Ok(()),
         Err(error) => Err(error.into()),
     }
+}
+
+fn has_named(account: &str) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        if macos::exists(account) {
+            return true;
+        }
+    }
+    get_named(account)
+        .ok()
+        .flatten()
+        .is_some_and(|value| !value.trim().is_empty())
 }
 
 pub fn save_secret(provider_id: &str, kind: &str, api_key: &str) -> Result<(), AppError> {
@@ -93,10 +132,10 @@ pub fn resolve_key(kind: &str, api_key: &str) -> Result<String, AppError> {
 }
 
 pub fn has_secret(provider_id: &str, kind: &str) -> bool {
-    get_secret(provider_id, kind)
-        .ok()
-        .flatten()
-        .is_some_and(|value| !value.trim().is_empty())
+    if shared_kind(kind) && has_named(&vendor_account(kind)) {
+        return true;
+    }
+    has_named(&account(provider_id))
 }
 
 pub fn delete_secret(provider_id: &str, kind: &str, keep_vendor: bool) -> Result<(), AppError> {
@@ -120,10 +159,7 @@ pub fn delete_provider_secret(provider_id: &str) -> Result<(), AppError> {
 }
 
 pub fn has_provider_secret(provider_id: &str) -> bool {
-    get_provider_secret(provider_id)
-        .ok()
-        .flatten()
-        .is_some_and(|value| !value.trim().is_empty())
+    has_named(&account(provider_id))
 }
 
 pub fn key_hint(value: &str) -> Option<String> {

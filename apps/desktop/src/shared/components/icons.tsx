@@ -283,6 +283,66 @@ export function RefreshIcon({ size = 16 }: IconProps) {
   );
 }
 
+type SeekIconProps = IconProps & {
+  seconds: 5 | 15;
+};
+
+export function SeekBackIcon({ size = 28, seconds }: SeekIconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M8.2 6.4A7.4 7.4 0 1 1 4.9 12"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path d="M4.4 5.4v4.1h4.1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <text
+        x="13"
+        y="15.4"
+        textAnchor="middle"
+        fill="currentColor"
+        fontSize={seconds === 15 ? 7 : 8}
+        fontWeight="700"
+      >
+        {seconds}
+      </text>
+    </svg>
+  );
+}
+
+export function SeekForwardIcon({ size = 28, seconds }: SeekIconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M15.8 6.4A7.4 7.4 0 1 0 19.1 12"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path d="M19.6 5.4v4.1h-4.1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <text
+        x="11"
+        y="15.4"
+        textAnchor="middle"
+        fill="currentColor"
+        fontSize={seconds === 15 ? 7 : 8}
+        fontWeight="700"
+      >
+        {seconds}
+      </text>
+    </svg>
+  );
+}
+
+export function MusicIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M9 4.8v10.4a2.6 2.6 0 1 1-1.7-2.4V8.1L19 5.8v7.9a2.6 2.6 0 1 1-1.7-2.4V4.6L9 6.9V4.8Z" />
+    </svg>
+  );
+}
+
 export function AlertIcon({ size = 16 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
