@@ -1,7 +1,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useEffect, useMemo, useState } from "react";
 
-import { AudioPlayer, loadAudio, seekAudio, toggleAudio, unloadAudio } from "@/modules/audio-player";
+import { AudioPlayer, loadAudio, loadTracks, seekAudio, toggleAudio, unloadAudio } from "@/modules/audio-player";
 import { useRecorder } from "@/modules/recorder";
 import { useRecorderStore } from "@/modules/recorder/stores/recorder.store";
 import { CloseIcon } from "@/shared/components/icons";
@@ -72,12 +72,24 @@ export function RecordingDetail() {
   }, []);
 
   useEffect(() => {
-    if (!session?.audioFile) {
-      unloadAudio();
+    const tracks = (session?.audioTracks ?? []).filter((track) => track.path);
+    if (tracks.length > 1) {
+      loadTracks(
+        tracks.map((track) => ({
+          id: track.kind,
+          src: convertFileSrc(track.path),
+          label: track.kind === "microphone" ? "Microphone" : track.kind === "system" ? "System" : "Audio",
+        })),
+        (session?.durationMs ?? 0) / 1000,
+      );
       return;
     }
-    loadAudio(convertFileSrc(session.audioFile), session.durationMs / 1000);
-  }, [session?.id, session?.audioFile, session?.durationMs]);
+    if (session?.audioFile) {
+      loadAudio(convertFileSrc(session.audioFile), session.durationMs / 1000);
+      return;
+    }
+    unloadAudio();
+  }, [session?.id, session?.audioFile, session?.audioTracks, session?.durationMs]);
 
   useEffect(() => {
     return () => unloadAudio();
@@ -205,7 +217,7 @@ export function RecordingDetail() {
           </p>
         </header>
 
-        {session.audioFile ? (
+        {session.audioFile || (session.audioTracks && session.audioTracks.length > 0) ? (
           <AudioPlayer
             screenshots={screenshotCues}
             selectedScreenshotId={selectedCaptureId}

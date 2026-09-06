@@ -214,6 +214,10 @@ export const LOCAL_MODEL_BLURBS: Record<string, string> = {
   large: "Highest accuracy",
 };
 
+export function transcriptionWordTimestamps(type: string) {
+  return type === "local" || type === "openai" || type === "groq" || type === "deepgram" || type === "assemblyai" || type === "openai-compatible";
+}
+
 export function catalogFor(capability: ProviderCapability) {
   const items = capability === "transcription" ? TRANSCRIPTION_PROVIDERS : AI_PROVIDERS;
   return items.filter((item) => !item.hidden);

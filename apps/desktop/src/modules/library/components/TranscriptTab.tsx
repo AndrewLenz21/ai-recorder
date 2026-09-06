@@ -1,12 +1,13 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useAudioPlayer } from "@/modules/audio-player";
 import { Button } from "@/shared/components/Button";
 import { Modal } from "@/shared/components/Modal";
 import { CaptureIcon, ChevronDownIcon, MusicIcon, NotesIcon, RefreshIcon } from "@/shared/components/icons";
 import { formatTimestamp } from "@/shared/lib/time";
-import type { RecordingEvent, TranscriptKind, TranscriptRun, TranscriptSegment } from "@/tauri/types";
+import type { RecordingEvent, TranscriptKind, TranscriptRun, TranscriptSegment, TranscriptSource } from "@/tauri/types";
 
 type Status = "empty" | "ready" | "transcribing" | "error";
 type CaptureEvent = Extract<RecordingEvent, { type: "screenCapture" }>;
@@ -34,9 +35,12 @@ type Props = {
   choices?: TranscriptChoice[];
   selected?: TranscriptChoice | null;
   history?: TranscriptRun[];
+  sources?: { id: TranscriptSource; label: string }[];
+  selectedSource?: TranscriptSource;
   onSeek?: (seconds: number) => void;
   onCaptureSelect?: (id: string, timestampMs: number) => void;
   onSelectChoice?: (choice: TranscriptChoice) => void;
+  onSelectSource?: (source: TranscriptSource) => void;
   onTranscribe?: () => void;
   onRestore?: (runId: string) => void;
   onConfigure?: () => void;
@@ -117,6 +121,68 @@ function formatElapsed(ms: number) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+function timingMode(segments: TranscriptSegment[]): "word" | "segment" | "none" {
+  if (segments.some((segment) => (segment.words?.length ?? 0) > 0)) {
+    return "word";
+  }
+  if (segments.some((segment) => segment.endMs > segment.startMs)) {
+    return "segment";
+  }
+  return "none";
+}
+
+function SpeechText({
+  segment,
+  timeMs,
+  mode,
+  onSeek,
+}: {
+  segment: TranscriptSegment;
+  timeMs: number;
+  mode: "word" | "segment" | "none";
+  onSeek?: (seconds: number) => void;
+}) {
+  const words = segment.words ?? [];
+  if (mode !== "word" || words.length === 0) {
+    return <p>{segment.text}</p>;
+  }
+  return (
+    <p className="transcript-words">
+      {words.map((word, index) => {
+        const active = timeMs >= word.startMs && timeMs < Math.max(word.endMs, word.startMs + 40);
+        const passed = word.endMs <= timeMs;
+        return (
+          <span key={`${word.startMs}-${index}`}>
+            {index > 0 ? " " : null}
+            <button
+              type="button"
+              className={`transcript-word ${active ? "is-active" : passed ? "is-passed" : ""}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSeek?.(word.startMs / 1000);
+              }}
+            >
+              {word.text}
+            </button>
+          </span>
+        );
+      })}
+    </p>
+  );
+}
+
+const SOURCE_LABELS: Record<"microphone" | "system", { icon: string; label: string }> = {
+  microphone: { icon: "🎙️", label: "Mic" },
+  system: { icon: "💻", label: "Computer" },
+};
+
+function sourceLabel(source?: TranscriptSource | null) {
+  if (source === "microphone" || source === "system") {
+    return SOURCE_LABELS[source];
+  }
+  return null;
+}
+
 function formatAgo(value: string) {
   const delta = Date.now() - new Date(value).getTime();
   if (Number.isNaN(delta) || delta < 60_000) {
@@ -141,18 +207,49 @@ export function TranscriptTab({
   choices = [],
   selected = null,
   history = [],
+  sources = [],
+  selectedSource = "mixed",
   onSeek,
   onCaptureSelect,
   onSelectChoice,
+  onSelectSource,
   onTranscribe,
   onRestore,
   onConfigure,
 }: Props) {
   const ready = segments.length > 0 && status !== "transcribing";
   const rows = transcriptRows(segments, captures);
+  const mode = useMemo(() => timingMode(segments), [segments]);
+  const { currentTime } = useAudioPlayer();
+  const timeMs = currentTime * 1000;
   const [stage, setStage] = useState<Stage>("preparing");
   const [elapsed, setElapsed] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [following, setFollowing] = useState(true);
+  const listRef = useRef<HTMLUListElement>(null);
+  const activeId = useMemo(() => {
+    if (mode === "none") {
+      return null;
+    }
+    const current = segments.find((segment) => timeMs >= segment.startMs && timeMs < Math.max(segment.endMs, segment.startMs + 1));
+    return current?.id ?? null;
+  }, [mode, segments, timeMs]);
+
+  useEffect(() => {
+    if (!following || !activeId || !listRef.current) {
+      return;
+    }
+    const row = listRef.current.querySelector(`[data-segment="${activeId}"]`);
+    const root = listRef.current.closest(".detail-tab-body");
+    if (!(row instanceof HTMLElement) || !(root instanceof HTMLElement)) {
+      return;
+    }
+    const rowRect = row.getBoundingClientRect();
+    const rootRect = root.getBoundingClientRect();
+    if (rowRect.top < rootRect.top + 12 || rowRect.bottom > rootRect.bottom - 12) {
+      row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [activeId, following]);
 
   useEffect(() => {
     if (status !== "transcribing") {
@@ -193,9 +290,17 @@ export function TranscriptTab({
               </span>
             </button>
           ) : null}
+          {ready && !following ? (
+            <button type="button" className="transcript-model" onClick={() => setFollowing(true)}>
+              Follow playback
+            </button>
+          ) : null}
           {choices.length > 0 ? (
             <button type="button" className="transcript-model" onClick={() => setPickerOpen(true)}>
-              <span>{selected?.label ?? providerLabel ?? "Choose model"}</span>
+              <span>
+                {selected?.label ?? providerLabel ?? "Choose model"}
+                {selectedSource === "both" ? " · Conversation" : selectedSource === "system" ? " · Computer" : selectedSource === "microphone" && sources.length > 1 ? " · Mic" : ""}
+              </span>
               <ChevronDownIcon size={14} />
             </button>
           ) : null}
@@ -217,6 +322,21 @@ export function TranscriptTab({
               <strong>{choice.label}</strong>
             </button>
           ))}
+          {sources.length > 1 ? (
+            <>
+              <p className="folder-field-label">Audio source</p>
+              {sources.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`provider-picker-row ${selectedSource === item.id ? "is-active" : ""}`}
+                  onClick={() => onSelectSource?.(item.id)}
+                >
+                  <strong>{item.label}</strong>
+                </button>
+              ))}
+            </>
+          ) : null}
           {history.length > 0 ? (
             <>
               <p className="folder-field-label">History</p>
@@ -275,35 +395,67 @@ export function TranscriptTab({
           <p className="transcript-elapsed">{formatElapsed(elapsed)}</p>
         </div>
       ) : ready ? (
-        <ul className="transcript-list">
-          {rows.map((row) =>
+        <ul
+          ref={listRef}
+          className="transcript-list"
+          onWheel={() => {
+            if (following) {
+              setFollowing(false);
+            }
+          }}
+        >
+          {rows.map((row, index) =>
             row.type === "segment" ? (
-              <li key={row.segment.id}>
-                <button
-                  type="button"
-                  className="transcript-segment"
+              <li key={row.segment.id} data-segment={row.segment.id}>
+                {(() => {
+                  const speaker = sourceLabel(row.segment.source);
+                  const previous = [...rows.slice(0, index)].reverse().find((item) => item.type === "segment");
+                  const showSpeaker = speaker && previous?.type === "segment"
+                    ? previous.segment.source !== row.segment.source
+                    : Boolean(speaker);
+                  const kind = row.segment.kind ?? markerKind(row.segment.text);
+                  return (
+                <div
+                  className={`transcript-segment ${mode !== "none" && row.segment.id === activeId ? "is-active" : ""} ${row.segment.source === "microphone" ? "is-mic" : row.segment.source === "system" ? "is-system" : ""}`}
                   onClick={() => onSeek?.(row.segment.startMs / 1000)}
                 >
-                  <time dateTime={`${row.segment.startMs}ms`}>{formatTimestamp(row.segment.startMs)}</time>
-                  {(() => {
-                    const kind = row.segment.kind ?? markerKind(row.segment.text);
-                    if (kind === "speech") {
-                      return <p>{row.segment.text}</p>;
-                    }
-                    return (
+                  <button
+                    type="button"
+                    className="transcript-time"
+                    onClick={() => onSeek?.(row.segment.startMs / 1000)}
+                  >
+                    <time dateTime={`${row.segment.startMs}ms`}>{formatTimestamp(row.segment.startMs)}</time>
+                  </button>
+                  <div className="transcript-copy">
+                    {showSpeaker && speaker ? (
+                      <p className="transcript-speaker">
+                        <span aria-hidden="true">{speaker.icon}</span>
+                        {speaker.label}
+                      </p>
+                    ) : null}
+                  {kind === "speech" ? (
+                      <SpeechText
+                        segment={row.segment}
+                        timeMs={timeMs}
+                        mode={mode}
+                        onSeek={onSeek}
+                      />
+                  ) : (
                       <p className={`transcript-event is-${kind}`}>
                         {kind === "music" ? <MusicIcon size={13} /> : null}
                         <span>{eventLabel(row.segment.text, kind)}</span>
                       </p>
-                    );
-                  })()}
-                </button>
+                  )}
+                  </div>
+                </div>
+                  );
+                })()}
               </li>
             ) : (
               <li key={row.capture.id}>
                 <button
                   type="button"
-                  className="transcript-shot"
+                  className={`transcript-shot ${Math.abs(timeMs - row.capture.timestampMs) <= 450 ? "is-active" : ""}`}
                   onClick={() => {
                     onSeek?.(row.capture.timestampMs / 1000);
                     onCaptureSelect?.(row.capture.id, row.capture.timestampMs);

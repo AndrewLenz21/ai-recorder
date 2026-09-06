@@ -6,7 +6,7 @@ import { settingsService } from "@/modules/settings/services/settings.service";
 import { CaptureIcon, NotesIcon, SparkleIcon } from "@/shared/components/icons";
 import { showToast } from "@/shared/stores/toast.store";
 import type { AppSettings, ProviderConnection } from "@/tauri/commands/settings";
-import type { RecordingEvent, RecordingSession } from "@/tauri/types";
+import type { RecordingEvent, RecordingSession, TranscriptSource } from "@/tauri/types";
 
 import { useLibraryStore } from "../stores/library.store";
 import { useRecorder } from "@/modules/recorder";
@@ -72,6 +72,11 @@ export function RecordingDetailTabs({
   );
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [choice, setChoice] = useState<TranscriptChoice | null>(null);
+  const hasMic = Boolean(session.audioTracks?.some((track) => track.kind === "microphone") || session.audioFile);
+  const hasSystem = Boolean(session.audioTracks?.some((track) => track.kind === "system"));
+  const [source, setSource] = useState<TranscriptSource>(
+    session.transcriptSource ?? (hasMic && hasSystem ? "both" : hasMic ? "microphone" : "mixed"),
+  );
 
   const transcription = defaultConnection(settings, "transcription");
   const ai = defaultConnection(settings, "ai");
@@ -134,7 +139,7 @@ export function RecordingDetailTabs({
   const transcribe = async () => {
     setTranscriptStatus("transcribing");
     try {
-      const updated = await settingsService.transcribe(session.id, selected?.connectionId, selected?.model);
+      const updated = await settingsService.transcribe(session.id, selected?.connectionId, selected?.model, source);
       onSessionUpdate(updated);
       setTranscriptStatus("ready");
     } catch (error) {
@@ -182,9 +187,21 @@ export function RecordingDetailTabs({
         choices={choices}
         selected={selected}
         history={session.transcriptHistory ?? []}
+        sources={
+          hasMic && hasSystem
+            ? [
+                { id: "both", label: "Conversation" },
+                { id: "microphone", label: "Microphone" },
+                { id: "system", label: "Computer" },
+                { id: "mixed", label: "Mixed" },
+              ]
+            : []
+        }
+        selectedSource={source}
         onSeek={seekAudio}
         onCaptureSelect={onSelectCapture}
         onSelectChoice={setChoice}
+        onSelectSource={setSource}
         onTranscribe={() => void transcribe()}
         onRestore={(runId) => void restore(runId)}
         onConfigure={() => openSettings("transcription")}

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::error::AppError;
-use crate::recorder::session::TranscriptSegment;
+use crate::recorder::session::{TranscriptSegment, TranscriptWord};
 use crate::settings::ProviderConnection;
 
 pub mod local;
@@ -30,6 +30,8 @@ struct WhisperResponse {
     text: Option<String>,
     #[serde(default)]
     segments: Vec<WhisperSegment>,
+    #[serde(default)]
+    words: Vec<WhisperWord>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -37,6 +39,16 @@ struct WhisperSegment {
     start: Option<f64>,
     end: Option<f64>,
     text: Option<String>,
+    #[serde(default)]
+    words: Vec<WhisperWord>,
+}
+
+#[derive(Debug, Deserialize)]
+struct WhisperWord {
+    #[serde(alias = "word")]
+    text: Option<String>,
+    start: Option<f64>,
+    end: Option<f64>,
 }
 
 fn endpoint(kind: &str, base_url: Option<&str>) -> Result<String, AppError> {
@@ -67,9 +79,52 @@ fn default_model(provider: &str, model: &str) -> String {
     }
 }
 
+fn seconds_to_ms(value: f64) -> u64 {
+    (value.max(0.0) * 1000.0).round() as u64
+}
+
+fn whisper_words(items: &[WhisperWord]) -> Vec<TranscriptWord> {
+    items
+        .iter()
+        .filter_map(|item| {
+            let text = item.text.as_deref().unwrap_or("").trim();
+            if text.is_empty() {
+                return None;
+            }
+            let start = seconds_to_ms(item.start.unwrap_or(0.0));
+            let end = seconds_to_ms(item.end.unwrap_or(item.start.unwrap_or(0.0))).max(start);
+            Some(TranscriptWord {
+                start_ms: start,
+                end_ms: end,
+                text: text.to_string(),
+            })
+        })
+        .collect()
+}
+
+fn assign_words(segments: &mut [TranscriptSegment], words: Vec<TranscriptWord>) {
+    if words.is_empty() {
+        return;
+    }
+    for segment in segments.iter_mut() {
+        if !segment.words.is_empty() {
+            continue;
+        }
+        segment.words = words
+            .iter()
+            .filter(|word| word.start_ms >= segment.start_ms && word.start_ms < segment.end_ms.max(segment.start_ms.saturating_add(1)))
+            .cloned()
+            .collect();
+    }
+    if segments.len() == 1 && segments[0].words.is_empty() {
+        segments[0].words = words;
+    }
+}
+
 fn to_segments(response: WhisperResponse) -> Vec<TranscriptSegment> {
+    let top_words = whisper_words(&response.words);
     if !response.segments.is_empty() {
-        return response
+        let mut segments = response
             .segments
             .into_iter()
             .filter_map(|segment| {
@@ -77,20 +132,25 @@ fn to_segments(response: WhisperResponse) -> Vec<TranscriptSegment> {
                 if text.is_empty() {
                     return None;
                 }
-                Some(TranscriptSegment::new(
-                    (segment.start.unwrap_or(0.0) * 1000.0).max(0.0) as u64,
-                    (segment.end.unwrap_or(0.0) * 1000.0).max(0.0) as u64,
-                    text,
-                ))
+                Some(
+                    TranscriptSegment::new(
+                        seconds_to_ms(segment.start.unwrap_or(0.0)),
+                        seconds_to_ms(segment.end.unwrap_or(0.0)),
+                        text,
+                    )
+                    .with_words(whisper_words(&segment.words)),
+                )
             })
-            .collect();
+            .collect::<Vec<_>>();
+        assign_words(&mut segments, top_words);
+        return segments;
     }
 
     let text = response.text.unwrap_or_default().trim().to_string();
     if text.is_empty() {
         return Vec::new();
     }
-    vec![TranscriptSegment::new(0, 0, text)]
+    vec![TranscriptSegment::new(0, 0, text).with_words(top_words)]
 }
 
 fn format_api_error(status: u16, body: &str) -> String {
@@ -161,25 +221,42 @@ async fn transcribe_url(
         .and_then(|name| name.to_str())
         .unwrap_or("audio.wav")
         .to_string();
-    let mut form = Form::new()
-        .part(
-            "file",
-            Part::bytes(bytes)
-                .file_name(file_name)
-                .mime_str("audio/wav")
-                .map_err(|error| AppError::msg(error.to_string()))?,
-        )
-        .text("model", default_model(provider, model))
-        .text("response_format", "verbose_json");
-    if !language.is_empty() && language != "auto" {
-        form = form.text("language", language.to_string());
-    }
-    let response = reqwest::Client::new()
+    let send = |with_words: bool| {
+        let mut form = Form::new()
+            .part(
+                "file",
+                Part::bytes(bytes.clone())
+                    .file_name(file_name.clone())
+                    .mime_str("audio/wav")
+                    .map_err(|error| AppError::msg(error.to_string()))?,
+            )
+            .text("model", default_model(provider, model))
+            .text("response_format", "verbose_json");
+        if with_words {
+            form = form
+                .text("timestamp_granularities[]", "word")
+                .text("timestamp_granularities[]", "segment");
+        }
+        if !language.is_empty() && language != "auto" {
+            form = form.text("language", language.to_string());
+        }
+        Ok::<_, AppError>(form)
+    };
+    let client = reqwest::Client::new();
+    let mut response = client
         .post(url)
         .bearer_auth(api_key.trim())
-        .multipart(form)
+        .multipart(send(true)?)
         .send()
         .await?;
+    if !response.status().is_success() {
+        response = client
+            .post(url)
+            .bearer_auth(api_key.trim())
+            .multipart(send(false)?)
+            .send()
+            .await?;
+    }
     let status = response.status();
     let body = response.text().await?;
     if !status.is_success() {
@@ -530,11 +607,39 @@ async fn transcribe_deepgram(
         if text.is_empty() {
             continue;
         }
-        segments.push(TranscriptSegment::new(
-            (item.get("start").and_then(|value| value.as_f64()).unwrap_or(0.0) * 1000.0) as u64,
-            (item.get("end").and_then(|value| value.as_f64()).unwrap_or(0.0) * 1000.0) as u64,
-            text,
-        ));
+        let words = item
+            .get("words")
+            .and_then(|value| value.as_array())
+            .map(|words| {
+                words
+                    .iter()
+                    .filter_map(|word| {
+                        let token = word
+                            .get("word")
+                            .or_else(|| word.get("punctuated_word"))
+                            .and_then(|value| value.as_str())
+                            .unwrap_or("")
+                            .trim();
+                        if token.is_empty() {
+                            return None;
+                        }
+                        Some(TranscriptWord {
+                            start_ms: seconds_to_ms(word.get("start").and_then(|value| value.as_f64()).unwrap_or(0.0)),
+                            end_ms: seconds_to_ms(word.get("end").and_then(|value| value.as_f64()).unwrap_or(0.0)),
+                            text: token.to_string(),
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        segments.push(
+            TranscriptSegment::new(
+                seconds_to_ms(item.get("start").and_then(|value| value.as_f64()).unwrap_or(0.0)),
+                seconds_to_ms(item.get("end").and_then(|value| value.as_f64()).unwrap_or(0.0)),
+                text,
+            )
+            .with_words(words),
+        );
     }
     if segments.is_empty() {
         if let Some(text) = value
@@ -615,6 +720,7 @@ async fn transcribe_assemblyai(
         let mut segments = Vec::new();
         if let Some(words) = body.get("words").and_then(|item| item.as_array()) {
             let mut current = String::new();
+            let mut current_words = Vec::new();
             let mut start_ms = 0_u64;
             let mut end_ms = 0_u64;
             for word in words {
@@ -628,14 +734,26 @@ async fn transcribe_assemblyai(
                     current.push(' ');
                 }
                 current.push_str(token);
+                if !token.trim().is_empty() {
+                    current_words.push(TranscriptWord {
+                        start_ms: word_start,
+                        end_ms: word_end,
+                        text: token.trim().to_string(),
+                    });
+                }
                 end_ms = word_end;
                 if token.ends_with('.') || token.ends_with('?') || token.ends_with('!') {
-                    segments.push(TranscriptSegment::new(start_ms, end_ms, current.trim().to_string()));
+                    segments.push(
+                        TranscriptSegment::new(start_ms, end_ms, current.trim().to_string()).with_words(current_words),
+                    );
                     current.clear();
+                    current_words = Vec::new();
                 }
             }
             if !current.trim().is_empty() {
-                segments.push(TranscriptSegment::new(start_ms, end_ms, current.trim().to_string()));
+                segments.push(
+                    TranscriptSegment::new(start_ms, end_ms, current.trim().to_string()).with_words(current_words),
+                );
             }
         }
         if segments.is_empty() {

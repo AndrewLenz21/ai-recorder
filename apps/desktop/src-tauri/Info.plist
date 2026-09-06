@@ -5,6 +5,6 @@
   <key>NSMicrophoneUsageDescription</key>
   <string>AI Recorder needs microphone access to record audio during a session.</string>
   <key>NSAudioCaptureUsageDescription</key>
-  <string>AI Recorder needs microphone access to record audio during a session.</string>
+  <string>AI Recorder captures computer audio so system sound and the microphone can stay on separate tracks.</string>
 </dict>
 </plist>

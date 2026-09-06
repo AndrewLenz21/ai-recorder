@@ -113,11 +113,12 @@ export const settingsCommands = {
   downloadModel: (modelId: string) => invokeCommand<AppSettings>("settings_download_local_model", { modelId }),
   downloadRuntime: () => invokeCommand<AppSettings>("settings_download_whisper_runtime"),
   removeModel: (modelId: string) => invokeCommand<AppSettings>("settings_remove_local_model", { modelId }),
-  transcribe: (id: string, providerId?: string | null, model?: string | null) =>
+  transcribe: (id: string, providerId?: string | null, model?: string | null, source?: string | null) =>
     invokeCommand<RecordingSession>("recorder_transcribe", {
       id,
       providerId: providerId ?? null,
       model: model ?? null,
+      source: source ?? null,
     }),
   restoreTranscript: (id: string, runId: string) =>
     invokeCommand<RecordingSession>("recorder_restore_transcript", { id, runId }),

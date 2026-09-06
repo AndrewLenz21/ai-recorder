@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, SyncSender};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
+use std::time::Instant;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Sample, SampleFormat, Stream, StreamConfig};
@@ -32,7 +33,7 @@ unsafe impl Send for AudioCapture {}
 unsafe impl Sync for AudioCapture {}
 
 impl AudioCapture {
-    pub fn start(path: PathBuf) -> Result<Self, AppError> {
+    pub fn start(path: PathBuf, writing: Arc<AtomicBool>, origin: Instant) -> Result<Self, AppError> {
         let host = cpal::default_host();
         let device = host
             .default_input_device()
@@ -45,9 +46,8 @@ impl AudioCapture {
         let config: StreamConfig = supported.clone().into();
         let sample_rate = config.sample_rate.0;
         let channels = config.channels;
-        let writing = Arc::new(AtomicBool::new(true));
         let frames = Arc::new(AtomicU64::new(0));
-        let (writer_tx, writer_rx) = mpsc::sync_channel::<WriterCommand>(64);
+        let (writer_tx, writer_rx) = mpsc::sync_channel::<WriterCommand>(256);
 
         let spec = hound::WavSpec {
             channels,
@@ -75,12 +75,13 @@ impl AudioCapture {
 
         let err_fn = |error| eprintln!("audio stream error: {error}");
         let stream = match sample_format {
-            SampleFormat::F32 => build_stream::<f32>(
+            SampleFormat::F32 =>             build_stream::<f32>(
                 &device,
                 &config,
                 writing.clone(),
                 frames.clone(),
                 writer_tx.clone(),
+                origin,
                 err_fn,
             )?,
             SampleFormat::I16 => build_stream::<i16>(
@@ -89,6 +90,7 @@ impl AudioCapture {
                 writing.clone(),
                 frames.clone(),
                 writer_tx.clone(),
+                origin,
                 err_fn,
             )?,
             SampleFormat::I32 => build_stream::<i32>(
@@ -97,6 +99,7 @@ impl AudioCapture {
                 writing.clone(),
                 frames.clone(),
                 writer_tx.clone(),
+                origin,
                 err_fn,
             )?,
             SampleFormat::U16 => build_stream::<u16>(
@@ -105,6 +108,7 @@ impl AudioCapture {
                 writing.clone(),
                 frames.clone(),
                 writer_tx.clone(),
+                origin,
                 err_fn,
             )?,
             other => {
@@ -168,6 +172,7 @@ fn build_stream<T>(
     writing: Arc<AtomicBool>,
     frames: Arc<AtomicU64>,
     writer_tx: SyncSender<WriterCommand>,
+    origin: Instant,
     err_fn: impl Fn(cpal::StreamError) + Send + 'static,
 ) -> Result<Stream, AppError>
 where
@@ -175,6 +180,8 @@ where
     i16: cpal::FromSample<T>,
 {
     let channels = u64::from(config.channels.max(1));
+    let sample_rate = u64::from(config.sample_rate.0.max(1));
+    let padded = AtomicBool::new(false);
     device
         .build_input_stream(
             config,
@@ -182,7 +189,16 @@ where
                 if !writing.load(Ordering::Relaxed) {
                     return;
                 }
-                let frame_count = data.len() as u64 / channels;
+                if !padded.swap(true, Ordering::Relaxed) {
+                    let pad_ms = origin.elapsed().as_millis() as u64;
+                    let pad_frames = pad_ms.saturating_mul(sample_rate) / 1000;
+                    if pad_frames > 0 {
+                        frames.fetch_add(pad_frames, Ordering::Relaxed);
+                        let silence = vec![0_i16; (pad_frames * channels) as usize];
+                        let _ = writer_tx.try_send(WriterCommand::Samples(silence));
+                    }
+                }
+                let frame_count = data.len() as u64 / channels.max(1);
                 frames.fetch_add(frame_count, Ordering::Relaxed);
                 let samples = data.iter().map(|sample| i16::from_sample(*sample)).collect();
                 let _ = writer_tx.try_send(WriterCommand::Samples(samples));

@@ -1495,6 +1495,37 @@ h2 {
   pointer-events: none;
 }
 
+.player-tracks {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.player-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.player-track.is-on {
+  color: var(--text);
+  border-color: color-mix(in oklch, var(--text) 22%, var(--border));
+  background: color-mix(in oklch, var(--text) 8%, transparent);
+}
+
+.player-track-mark {
+  width: 10px;
+  font-size: 11px;
+}
+
 .waveform {
   --waveform-played: var(--btn);
   --waveform-remaining: color-mix(in oklch, var(--text-secondary) 38%, var(--border));
@@ -1513,6 +1544,25 @@ h2 {
   overflow: visible;
 }
 
+.waveform-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.waveform-lane {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.waveform-lane-label {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+}
+
 .waveform-track {
   position: relative;
   display: flex;
@@ -1521,6 +1571,10 @@ h2 {
   width: 100%;
   height: 56px;
   cursor: pointer;
+}
+
+.waveform-track.is-compact {
+  height: 32px;
 }
 
 .waveform-bar {
@@ -1971,10 +2025,46 @@ h2 {
   background: transparent;
   color: inherit;
   text-align: left;
+  transition:
+    background-color 140ms var(--ease),
+    color 140ms var(--ease);
 }
 
-.transcript-segment:hover {
+.transcript-segment:hover,
+.transcript-segment.is-active {
   background: color-mix(in oklch, var(--border) 72%, transparent);
+}
+
+.transcript-time {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.transcript-copy {
+  min-width: 0;
+}
+
+.transcript-speaker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 3px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.transcript-segment.is-mic .transcript-speaker {
+  color: var(--text);
+}
+
+.transcript-segment.is-system {
+  background: color-mix(in oklch, var(--text) 4%, transparent);
 }
 
 .transcript-segment time {
@@ -1987,6 +2077,38 @@ h2 {
 .transcript-segment p {
   font-size: 14px;
   line-height: 1.55;
+}
+
+.transcript-words {
+  margin: 0;
+}
+
+.transcript-word {
+  margin: 0;
+  padding: 0 1px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  transition:
+    color 140ms var(--ease),
+    background-color 140ms var(--ease);
+}
+
+.transcript-word.is-passed {
+  color: var(--text);
+}
+
+.transcript-word.is-active {
+  color: var(--text);
+  background: color-mix(in oklch, var(--text) 12%, transparent);
+}
+
+.transcript-shot.is-active {
+  border-color: color-mix(in oklch, var(--text) 22%, var(--border));
 }
 
 .transcript-event {
@@ -2746,18 +2868,15 @@ h2 {
 }
 
 .model-row-actions {
-  position: relative;
   display: flex;
-  width: 32px;
   height: 32px;
-  flex: 0 0 32px;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
+  gap: 6px;
 }
 
 .model-download {
-  position: absolute;
-  right: 0;
   display: inline-flex;
   width: 32px;
   height: 32px;

@@ -1,12 +1,17 @@
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use tauri::{AppHandle, Emitter};
 
 use crate::error::AppError;
 use crate::recorder::audio::AudioCapture;
-use crate::recorder::session::{RecorderStateDto, RecordingSession, RecordingStatus};
+use crate::recorder::session::{
+    AudioTrack, AudioTrackKind, RecorderStateDto, RecordingSession, RecordingStatus,
+};
+use crate::recorder::system_audio::SystemAudioCapture;
 use crate::storage;
 use crate::timeline::{event_id, now_rfc3339, RecordingEvent};
 use crate::windows;
@@ -15,6 +20,8 @@ struct Inner {
     status: RecordingStatus,
     session: Option<RecordingSession>,
     audio: Option<AudioCapture>,
+    system_audio: Option<SystemAudioCapture>,
+    writing: Option<Arc<AtomicBool>>,
     capture_count: u32,
     error: Option<String>,
 }
@@ -30,6 +37,8 @@ impl RecorderEngine {
                 status: RecordingStatus::Idle,
                 session: None,
                 audio: None,
+                system_audio: None,
+                writing: None,
                 capture_count: 0,
                 error: None,
             }),
@@ -60,9 +69,12 @@ impl RecorderEngine {
         let root = storage::recordings_dir(app)?;
         let directory = storage::session_dir(&root, &session_id);
         fs::create_dir_all(directory.join("captures"))?;
-        let audio_path = directory.join("audio.wav");
+        let mic_path = directory.join("microphone.wav");
+        let system_path = directory.join("system.wav");
+        let writing = Arc::new(AtomicBool::new(true));
+        let origin = Instant::now();
 
-        let audio = match AudioCapture::start(audio_path.clone()) {
+        let audio = match AudioCapture::start(mic_path.clone(), writing.clone(), origin) {
             Ok(audio) => audio,
             Err(error) => {
                 let mut inner = self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -70,12 +82,15 @@ impl RecorderEngine {
                 inner.error = Some(error.to_string());
                 inner.session = None;
                 inner.audio = None;
+                inner.system_audio = None;
+                inner.writing = None;
                 drop(inner);
                 let state = self.snapshot();
                 emit_state(app, &state);
                 return Err(error);
             }
         };
+        let system_audio = SystemAudioCapture::start(system_path.clone(), writing.clone(), origin).ok();
 
         let started_at = now_rfc3339();
         let mut session = RecordingSession {
@@ -85,18 +100,39 @@ impl RecorderEngine {
             started_at: started_at.clone(),
             ended_at: None,
             duration_ms: 0,
-            audio_file: Some(path_to_string(&audio_path)),
+            audio_file: Some(path_to_string(&mic_path)),
             sample_rate: audio.sample_rate(),
             channels: audio.channels(),
             directory: path_to_string(&directory),
+            audio_tracks: vec![AudioTrack {
+                id: "microphone".to_string(),
+                kind: AudioTrackKind::Microphone,
+                path: path_to_string(&mic_path),
+                duration_ms: 0,
+                sample_rate: Some(audio.sample_rate()),
+                channels: Some(audio.channels()),
+                offset_ms: 0,
+            }],
             events: Vec::new(),
             transcript: None,
             transcript_provider: None,
             transcript_model: None,
             transcript_language: None,
+            transcript_source: None,
             transcript_history: Vec::new(),
             summary: None,
         };
+        if system_audio.is_some() {
+            session.audio_tracks.push(AudioTrack {
+                id: "system".to_string(),
+                kind: AudioTrackKind::System,
+                path: path_to_string(&system_path),
+                duration_ms: 0,
+                sample_rate: None,
+                channels: None,
+                offset_ms: 0,
+            });
+        }
         session.events.push(RecordingEvent::RecordingStarted {
             id: event_id(),
             recording_id: session_id,
@@ -110,6 +146,8 @@ impl RecorderEngine {
             inner.status = RecordingStatus::Recording;
             inner.session = Some(session);
             inner.audio = Some(audio);
+            inner.system_audio = system_audio;
+            inner.writing = Some(writing);
             inner.capture_count = 0;
             inner.error = None;
         }
@@ -146,8 +184,8 @@ impl RecorderEngine {
             if inner.status != RecordingStatus::Recording {
                 return Err(AppError::msg("Recording is not active."));
             }
-            if let Some(audio) = inner.audio.as_ref() {
-                audio.set_writing(false);
+            if let Some(writing) = inner.writing.as_ref() {
+                writing.store(false, std::sync::atomic::Ordering::Relaxed);
             }
             let timestamp_ms = current_duration_ms(&inner);
             if let Some(session) = inner.session.as_mut() {
@@ -173,8 +211,8 @@ impl RecorderEngine {
             if inner.status != RecordingStatus::Paused {
                 return Err(AppError::msg("Recording is not paused."));
             }
-            if let Some(audio) = inner.audio.as_ref() {
-                audio.set_writing(true);
+            if let Some(writing) = inner.writing.as_ref() {
+                writing.store(true, std::sync::atomic::Ordering::Relaxed);
             }
             let timestamp_ms = current_duration_ms(&inner);
             if let Some(session) = inner.session.as_mut() {
@@ -195,7 +233,7 @@ impl RecorderEngine {
     }
 
     pub fn stop(&self, app: &AppHandle) -> Result<RecorderStateDto, AppError> {
-        let audio = {
+        let (audio, system_audio) = {
             let mut inner = self.inner.lock().unwrap_or_else(|error| error.into_inner());
             if !matches!(
                 inner.status,
@@ -204,7 +242,8 @@ impl RecorderEngine {
                 return Err(AppError::msg("No active recording to stop."));
             }
             inner.status = RecordingStatus::Stopping;
-            inner.audio.take()
+            inner.writing.take();
+            (inner.audio.take(), inner.system_audio.take())
         };
         emit_state(app, &self.snapshot());
 
@@ -213,11 +252,38 @@ impl RecorderEngine {
         } else {
             0
         };
+        let system_meta = system_audio
+            .as_ref()
+            .map(|capture| (capture.sample_rate(), capture.channels()));
+        let system_stopped = system_audio.and_then(|capture| capture.stop().ok());
 
         {
             let mut inner = self.inner.lock().unwrap_or_else(|error| error.into_inner());
             if let Some(session) = inner.session.as_mut() {
                 session.duration_ms = duration_ms;
+                for track in &mut session.audio_tracks {
+                    match track.kind {
+                        AudioTrackKind::Microphone => {
+                            track.duration_ms = duration_ms;
+                            if !std::path::Path::new(&track.path).is_file() {
+                                continue;
+                            }
+                        }
+                        AudioTrackKind::System => {
+                            track.duration_ms = system_stopped.unwrap_or(0);
+                            if let Some((rate, channels)) = system_meta {
+                                track.sample_rate = Some(rate);
+                                track.channels = Some(channels);
+                            }
+                        }
+                        AudioTrackKind::Mixed => {}
+                    }
+                }
+                session.audio_tracks.retain(|track| {
+                    std::path::Path::new(&track.path)
+                        .metadata()
+                        .is_ok_and(|meta| meta.len() > 44)
+                });
                 session.ended_at = Some(now_rfc3339());
                 session.events.push(RecordingEvent::RecordingStopped {
                     id: event_id(),
@@ -249,6 +315,8 @@ impl RecorderEngine {
             inner.status = RecordingStatus::Idle;
             inner.session = None;
             inner.audio = None;
+            inner.system_audio = None;
+            inner.writing = None;
             inner.error = None;
             inner.capture_count = 0;
         }

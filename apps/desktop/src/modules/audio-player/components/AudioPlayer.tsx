@@ -12,7 +12,7 @@ type Props = {
 };
 
 export function AudioPlayer({ screenshots, selectedScreenshotId, onScreenshotSelect }: Props) {
-  const { playing, currentTime, duration, toggle, skip, error } = useAudioPlayer();
+  const { playing, currentTime, duration, toggle, skip, error, tracks, muted, toggleTrack } = useAudioPlayer();
   const atStart = currentTime <= 0.05;
   const atEnd = duration > 0 && currentTime >= duration - 0.05;
 
@@ -23,6 +23,27 @@ export function AudioPlayer({ screenshots, selectedScreenshotId, onScreenshotSel
         selectedScreenshotId={selectedScreenshotId}
         onScreenshotSelect={onScreenshotSelect}
       />
+      {tracks.length > 1 ? (
+        <div className="player-tracks" role="group" aria-label="Audio tracks">
+          {tracks.map((track) => {
+            const enabled = !muted[track.id];
+            return (
+              <button
+                key={track.id}
+                type="button"
+                className={`player-track ${enabled ? "is-on" : ""}`}
+                aria-pressed={enabled}
+                onClick={() => toggleTrack(track.id)}
+              >
+                <span className="player-track-mark" aria-hidden="true">
+                  {enabled ? "✓" : ""}
+                </span>
+                {track.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
       <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
         <span>{formatTimestamp(currentTime * 1000)}</span>
         <span>{formatTimestamp(duration * 1000)}</span>

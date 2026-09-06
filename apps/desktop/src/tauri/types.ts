@@ -46,6 +46,24 @@ export type RecordingEvent =
     };
 
 export type TranscriptKind = "speech" | "music" | "sound";
+export type AudioTrackKind = "microphone" | "system" | "mixed";
+export type TranscriptSource = "mixed" | "microphone" | "system" | "both";
+
+export type AudioTrack = {
+  id: string;
+  kind: AudioTrackKind;
+  path: string;
+  durationMs: number;
+  sampleRate?: number | null;
+  channels?: number | null;
+  offsetMs?: number;
+};
+
+export type TranscriptWord = {
+  startMs: number;
+  endMs: number;
+  text: string;
+};
 
 export type TranscriptSegment = {
   id: string;
@@ -53,6 +71,8 @@ export type TranscriptSegment = {
   endMs: number;
   text: string;
   kind?: TranscriptKind;
+  words?: TranscriptWord[];
+  source?: TranscriptSource | null;
 };
 
 export type TranscriptRun = {
@@ -61,6 +81,7 @@ export type TranscriptRun = {
   provider: string;
   model: string;
   language?: string | null;
+  source?: TranscriptSource | null;
   segments: TranscriptSegment[];
 };
 
@@ -75,11 +96,13 @@ export type RecordingSession = {
   sampleRate: number;
   channels: number;
   directory: string;
+  audioTracks?: AudioTrack[];
   events: RecordingEvent[];
   transcript?: TranscriptSegment[] | null;
   transcriptProvider?: string | null;
   transcriptModel?: string | null;
   transcriptLanguage?: string | null;
+  transcriptSource?: TranscriptSource | null;
   transcriptHistory?: TranscriptRun[];
   summary?: string | null;
 };

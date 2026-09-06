@@ -2,7 +2,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::ai;
 use crate::error::AppError;
-use crate::recorder::session::RecordingSession;
+use crate::recorder::session::{AudioTrackKind, RecordingSession, TranscriptSource};
 use crate::settings::{self, ProviderCapability, SettingsDto};
 use crate::storage;
 use crate::transcription;
@@ -197,6 +197,7 @@ fn archive_transcript(session: &mut crate::recorder::session::RecordingSession) 
             provider: session.transcript_provider.clone().unwrap_or_else(|| "Unknown".to_string()),
             model: session.transcript_model.clone().unwrap_or_default(),
             language: session.transcript_language.clone(),
+            source: session.transcript_source,
             segments,
         },
     );
@@ -209,6 +210,7 @@ pub async fn recorder_transcribe(
     id: String,
     provider_id: Option<String>,
     model: Option<String>,
+    source: Option<String>,
 ) -> Result<RecordingSession, AppError> {
     let _ = app.emit("transcription:stage", "preparing");
     let settings = settings::read_settings(&app)?;
@@ -229,13 +231,21 @@ pub async fn recorder_transcribe(
     }
     let root = storage::recordings_dir(&app)?;
     let session = storage::read_session(&root, &id)?;
-    let audio = session
-        .audio_file
-        .as_ref()
-        .ok_or_else(|| AppError::msg("This recording has no audio."))?;
+    let source = TranscriptSource::parse(source.as_deref().or(Some(session.default_transcript_source().as_str())));
     let _ = app.emit("transcription:stage", "transcribing");
-    let (segments, language) =
-        transcription::transcribe_connection(&app, &connection, std::path::Path::new(audio)).await?;
+    let (segments, language) = if source == TranscriptSource::Both {
+        transcribe_conversation(&app, &connection, &session).await?
+    } else {
+        let audio = resolve_transcript_audio(&session, source)?;
+        let (mut segments, language) =
+            transcription::transcribe_connection(&app, &connection, std::path::Path::new(&audio)).await?;
+        if matches!(source, TranscriptSource::Microphone | TranscriptSource::System) {
+            for segment in &mut segments {
+                segment.source = Some(source);
+            }
+        }
+        (segments, language)
+    };
     let _ = app.emit("transcription:stage", "timestamps");
     let provider = connection.display_name.clone();
     let model = connection.model.clone();
@@ -245,6 +255,7 @@ pub async fn recorder_transcribe(
         session.transcript_provider = Some(provider);
         session.transcript_model = Some(model);
         session.transcript_language = language;
+        session.transcript_source = Some(source);
     })
 }
 
@@ -265,6 +276,7 @@ pub fn recorder_restore_transcript(app: AppHandle, id: String, run_id: String) -
         session.transcript_provider = Some(run.provider);
         session.transcript_model = Some(run.model);
         session.transcript_language = run.language;
+        session.transcript_source = run.source;
     })
 }
 
@@ -306,6 +318,102 @@ pub fn credentials_has(provider_id: String) -> bool {
 #[tauri::command]
 pub fn credentials_delete(provider_id: String) -> Result<(), AppError> {
     crate::credentials::delete_provider_secret(&provider_id)
+}
+
+async fn transcribe_conversation(
+    app: &AppHandle,
+    connection: &crate::settings::ProviderConnection,
+    session: &RecordingSession,
+) -> Result<(Vec<crate::recorder::session::TranscriptSegment>, Option<String>), AppError> {
+    let mic = resolve_transcript_audio(session, TranscriptSource::Microphone).ok();
+    let system = resolve_transcript_audio(session, TranscriptSource::System).ok();
+    if mic.is_none() && system.is_none() {
+        return Err(AppError::msg("This recording has no audio tracks to transcribe."));
+    }
+    let mut merged = Vec::new();
+    let mut language = None;
+    if let Some(path) = mic {
+        let (segments, detected) = transcribe_track(app, connection, &path, TranscriptSource::Microphone).await?;
+        if language.is_none() {
+            language = detected;
+        }
+        merged.extend(segments);
+    }
+    if let Some(path) = system {
+        let (segments, detected) = transcribe_track(app, connection, &path, TranscriptSource::System).await?;
+        if language.is_none() {
+            language = detected;
+        }
+        merged.extend(segments);
+    }
+    if merged.is_empty() {
+        return Err(AppError::msg("Transcription returned no text from either track."));
+    }
+    merged.sort_by(|left, right| {
+        left.start_ms
+            .cmp(&right.start_ms)
+            .then_with(|| source_rank(left.source).cmp(&source_rank(right.source)))
+    });
+    Ok((merged, language))
+}
+
+async fn transcribe_track(
+    app: &AppHandle,
+    connection: &crate::settings::ProviderConnection,
+    path: &str,
+    source: TranscriptSource,
+) -> Result<(Vec<crate::recorder::session::TranscriptSegment>, Option<String>), AppError> {
+    match transcription::transcribe_connection(app, connection, std::path::Path::new(path)).await {
+        Ok((segments, language)) => Ok((
+            segments
+                .into_iter()
+                .map(|segment| segment.with_source(source))
+                .collect(),
+            language,
+        )),
+        Err(error) if error.to_string().to_ascii_lowercase().contains("no text") => Ok((Vec::new(), None)),
+        Err(error) => Err(error),
+    }
+}
+
+fn source_rank(source: Option<TranscriptSource>) -> u8 {
+    match source {
+        Some(TranscriptSource::Microphone) => 0,
+        Some(TranscriptSource::System) => 1,
+        _ => 2,
+    }
+}
+
+fn resolve_transcript_audio(
+    session: &RecordingSession,
+    source: TranscriptSource,
+) -> Result<String, AppError> {
+    let path_for = |kind: AudioTrackKind| session.track(kind).map(|track| track.path.clone());
+    match source {
+        TranscriptSource::Microphone => path_for(AudioTrackKind::Microphone)
+            .or_else(|| session.audio_file.clone())
+            .ok_or_else(|| AppError::msg("This recording has no microphone track.")),
+        TranscriptSource::System => path_for(AudioTrackKind::System)
+            .ok_or_else(|| AppError::msg("This recording has no system audio track.")),
+        TranscriptSource::Both => Err(AppError::msg("Conversation mode transcribes each track separately.")),
+        TranscriptSource::Mixed => {
+            if let Some(mixed) = path_for(AudioTrackKind::Mixed) {
+                return Ok(mixed);
+            }
+            match (path_for(AudioTrackKind::Microphone), path_for(AudioTrackKind::System)) {
+                (Some(mic), Some(system)) => {
+                    let output = std::path::PathBuf::from(&session.directory).join("mixed.wav");
+                    crate::recorder::mix_wavs(std::path::Path::new(&mic), std::path::Path::new(&system), &output)?;
+                    Ok(output.to_string_lossy().to_string())
+                }
+                (Some(path), None) | (None, Some(path)) => Ok(path),
+                (None, None) => session
+                    .audio_file
+                    .clone()
+                    .ok_or_else(|| AppError::msg("This recording has no audio.")),
+            }
+        }
+    }
 }
 
 fn parse_capability(value: &str) -> Result<ProviderCapability, AppError> {

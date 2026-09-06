@@ -29,6 +29,8 @@ pub struct RecordingSession {
     pub sample_rate: u32,
     pub channels: u16,
     pub directory: String,
+    #[serde(default)]
+    pub audio_tracks: Vec<AudioTrack>,
     pub events: Vec<RecordingEvent>,
     #[serde(default)]
     pub transcript: Option<Vec<TranscriptSegment>>,
@@ -39,9 +41,81 @@ pub struct RecordingSession {
     #[serde(default)]
     pub transcript_language: Option<String>,
     #[serde(default)]
+    pub transcript_source: Option<TranscriptSource>,
+    #[serde(default)]
     pub transcript_history: Vec<TranscriptRun>,
     #[serde(default)]
     pub summary: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum AudioTrackKind {
+    Microphone,
+    System,
+    Mixed,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum TranscriptSource {
+    Mixed,
+    Microphone,
+    System,
+    Both,
+}
+
+impl TranscriptSource {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Mixed => "mixed",
+            Self::Microphone => "microphone",
+            Self::System => "system",
+            Self::Both => "both",
+        }
+    }
+
+    pub fn parse(value: Option<&str>) -> Self {
+        match value.map(str::trim).unwrap_or("mixed") {
+            "microphone" => Self::Microphone,
+            "system" => Self::System,
+            "both" | "conversation" => Self::Both,
+            _ => Self::Mixed,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioTrack {
+    pub id: String,
+    pub kind: AudioTrackKind,
+    pub path: String,
+    pub duration_ms: u64,
+    #[serde(default)]
+    pub sample_rate: Option<u32>,
+    #[serde(default)]
+    pub channels: Option<u16>,
+    #[serde(default)]
+    pub offset_ms: i64,
+}
+
+impl RecordingSession {
+    pub fn track(&self, kind: AudioTrackKind) -> Option<&AudioTrack> {
+        self.audio_tracks.iter().find(|track| track.kind == kind)
+    }
+
+    pub fn default_transcript_source(&self) -> TranscriptSource {
+        let has_mic = self.track(AudioTrackKind::Microphone).is_some() || self.audio_file.is_some();
+        let has_system = self.track(AudioTrackKind::System).is_some();
+        if has_mic && has_system {
+            TranscriptSource::Both
+        } else if has_mic {
+            TranscriptSource::Microphone
+        } else {
+            TranscriptSource::Mixed
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,6 +127,8 @@ pub struct TranscriptRun {
     pub model: String,
     #[serde(default)]
     pub language: Option<String>,
+    #[serde(default)]
+    pub source: Option<TranscriptSource>,
     pub segments: Vec<TranscriptSegment>,
 }
 
@@ -101,6 +177,14 @@ impl TranscriptKind {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TranscriptWord {
+    pub start_ms: u64,
+    pub end_ms: u64,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TranscriptSegment {
     pub id: String,
     pub start_ms: u64,
@@ -108,6 +192,10 @@ pub struct TranscriptSegment {
     pub text: String,
     #[serde(default)]
     pub kind: TranscriptKind,
+    #[serde(default)]
+    pub words: Vec<TranscriptWord>,
+    #[serde(default)]
+    pub source: Option<TranscriptSource>,
 }
 
 impl TranscriptSegment {
@@ -120,7 +208,19 @@ impl TranscriptSegment {
             end_ms,
             text,
             kind,
+            words: Vec::new(),
+            source: None,
         }
+    }
+
+    pub fn with_words(mut self, words: Vec<TranscriptWord>) -> Self {
+        self.words = words;
+        self
+    }
+
+    pub fn with_source(mut self, source: TranscriptSource) -> Self {
+        self.source = Some(source);
+        self
     }
 }
 

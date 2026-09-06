@@ -180,12 +180,22 @@ fn session_file_size(session: &RecordingSession) -> u64 {
 }
 
 fn audio_size(session: &RecordingSession) -> u64 {
-    session
-        .audio_file
-        .as_ref()
-        .and_then(|path| fs::metadata(path).ok())
-        .map(|meta| meta.len())
-        .unwrap_or(0)
+    let mut seen = std::collections::BTreeSet::new();
+    let mut total = 0_u64;
+    for path in session
+        .audio_tracks
+        .iter()
+        .map(|track| track.path.as_str())
+        .chain(session.audio_file.as_deref())
+    {
+        if !seen.insert(path.to_string()) {
+            continue;
+        }
+        if let Ok(meta) = fs::metadata(path) {
+            total = total.saturating_add(meta.len());
+        }
+    }
+    total
 }
 
 fn screenshot_size(session: &RecordingSession) -> u64 {
