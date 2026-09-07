@@ -36,3 +36,18 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+*.p12
+*.pfx
+*.key
+*.cer
+*.mobileprovision
+*.provisionprofile
+
+# Native builds
+apps/desktop/src-tauri/target
+apps/desktop/src-tauri/gen
+
+# User recordings and local data
+*.wav
+*.wave
+secrets.json
