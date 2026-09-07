@@ -33,13 +33,26 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            xdg-utils \
+            libasound2-dev
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: npm
+
+      - name: Install required npm version
+        run: npm install -g npm@11.19.0
+
+      - name: Verify Node and npm versions
+        run: |
+          node --version
+          npm --version
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
