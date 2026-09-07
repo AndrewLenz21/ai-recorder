@@ -351,3 +351,24 @@ export function AlertIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+export function CopyIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+      <path d="M15.5 8.5V6.8A1.8 1.8 0 0 0 13.7 5H6.8A1.8 1.8 0 0 0 5 6.8v6.9A1.8 1.8 0 0 0 6.8 15.5H8.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function NotionIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="17" height="17" rx="4" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M8.4 7.4h2.1l5.1 7.4V7.4h1.6v9.2h-2.1L9.9 9.1v7.5H8.4V7.4Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}

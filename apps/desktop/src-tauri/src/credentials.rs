@@ -150,10 +150,6 @@ pub fn save_provider_secret(provider_id: &str, api_key: &str) -> Result<(), AppE
     save_named(&account(provider_id), api_key)
 }
 
-pub fn get_provider_secret(provider_id: &str) -> Result<Option<String>, AppError> {
-    get_named(&account(provider_id))
-}
-
 pub fn delete_provider_secret(provider_id: &str) -> Result<(), AppError> {
     delete_named(&account(provider_id))
 }

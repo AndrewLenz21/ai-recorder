@@ -5,8 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAudioPlayer } from "@/modules/audio-player";
 import { Button } from "@/shared/components/Button";
 import { Modal } from "@/shared/components/Modal";
-import { CaptureIcon, ChevronDownIcon, MusicIcon, NotesIcon, RefreshIcon } from "@/shared/components/icons";
+import { OverflowMenu } from "@/shared/components/OverflowMenu";
+import { CaptureIcon, CopyIcon, MusicIcon, NotesIcon, NotionIcon, RefreshIcon } from "@/shared/components/icons";
 import { formatTimestamp } from "@/shared/lib/time";
+import { showToast } from "@/shared/stores/toast.store";
 import type { RecordingEvent, TranscriptKind, TranscriptRun, TranscriptSegment, TranscriptSource } from "@/tauri/types";
 
 type Status = "empty" | "ready" | "transcribing" | "error";
@@ -44,6 +46,7 @@ type Props = {
   onTranscribe?: () => void;
   onRestore?: (runId: string) => void;
   onConfigure?: () => void;
+  onSendToNotion?: () => void;
 };
 
 type Row =
@@ -216,6 +219,7 @@ export function TranscriptTab({
   onTranscribe,
   onRestore,
   onConfigure,
+  onSendToNotion,
 }: Props) {
   const ready = segments.length > 0 && status !== "transcribing";
   const rows = transcriptRows(segments, captures);
@@ -274,37 +278,63 @@ export function TranscriptTab({
     <div className="detail-tab-body">
       <div className="detail-tab-head">
         <p className="transcript-title">Transcript</p>
-        <div className="transcript-head-actions">
-          {ready || (busy && segments.length > 0) ? (
-            <button
-              type="button"
-              className={`transcript-retry ${busy ? "is-busy" : ""}`}
-              aria-label="Transcribe again"
-              title={busy ? undefined : "Transcribe again"}
-              disabled={busy}
-              onClick={onTranscribe}
-            >
-              {busy ? <span className="app-spinner" /> : <RefreshIcon size={14} />}
-              <span className="transcript-retry-label">
-                <span>Transcribe again</span>
-              </span>
-            </button>
-          ) : null}
-          {ready && !following ? (
-            <button type="button" className="transcript-model" onClick={() => setFollowing(true)}>
-              Follow playback
-            </button>
-          ) : null}
-          {choices.length > 0 ? (
-            <button type="button" className="transcript-model" onClick={() => setPickerOpen(true)}>
-              <span>
-                {selected?.label ?? providerLabel ?? "Choose model"}
-                {selectedSource === "both" ? " · Conversation" : selectedSource === "system" ? " · Computer" : selectedSource === "microphone" && sources.length > 1 ? " · Mic" : ""}
-              </span>
-              <ChevronDownIcon size={14} />
-            </button>
-          ) : null}
-        </div>
+        <OverflowMenu
+          label="Transcript options"
+          items={[
+            ...(ready
+              ? [
+                  {
+                    id: "copy",
+                    label: "Copy",
+                    icon: <CopyIcon size={16} />,
+                    onSelect: () => {
+                      void navigator.clipboard
+                        .writeText(segments.map((segment) => segment.text).join("\n\n"))
+                        .then(() => showToast("success", "Transcript copied"))
+                        .catch(() => showToast("error", "Could not copy transcript"));
+                    },
+                  },
+                  {
+                    id: "notion",
+                    label: "Send to Notion",
+                    icon: <NotionIcon size={16} />,
+                    onSelect: () => onSendToNotion?.(),
+                  },
+                ]
+              : []),
+            ...(ready || (busy && segments.length > 0)
+              ? [
+                  {
+                    id: "again",
+                    label: "Transcribe again",
+                    icon: <RefreshIcon size={16} />,
+                    disabled: busy,
+                    onSelect: () => onTranscribe?.(),
+                  },
+                ]
+              : []),
+            ...(ready && !following
+              ? [
+                  {
+                    id: "follow",
+                    label: "Follow playback",
+                    icon: <NotesIcon size={16} />,
+                    onSelect: () => setFollowing(true),
+                  },
+                ]
+              : []),
+            ...(choices.length > 0
+              ? [
+                  {
+                    id: "model",
+                    label: selected?.label ?? providerLabel ?? "Choose model",
+                    icon: <NotesIcon size={16} />,
+                    onSelect: () => setPickerOpen(true),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
       <Modal open={pickerOpen} title="Transcript" subtitle="Choose a model or restore a previous run." size="picker" onClose={() => setPickerOpen(false)}>
         <div className="transcript-picker">

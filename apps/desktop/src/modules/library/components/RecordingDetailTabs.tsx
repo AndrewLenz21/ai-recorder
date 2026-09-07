@@ -12,7 +12,7 @@ import { useLibraryStore } from "../stores/library.store";
 import { useRecorder } from "@/modules/recorder";
 
 import { ScreenshotsTab } from "./ScreenshotsTab";
-import { SummaryTab } from "./SummaryTab";
+import { SummaryTab, type SummaryChoice } from "./SummaryTab";
 import { TranscriptTab, type TranscriptChoice } from "./TranscriptTab";
 
 type CaptureEvent = Extract<RecordingEvent, { type: "screenCapture" }>;
@@ -72,6 +72,7 @@ export function RecordingDetailTabs({
   );
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [choice, setChoice] = useState<TranscriptChoice | null>(null);
+  const [aiChoice, setAiChoice] = useState<SummaryChoice | null>(null);
   const hasMic = Boolean(session.audioTracks?.some((track) => track.kind === "microphone") || session.audioFile);
   const hasSystem = Boolean(session.audioTracks?.some((track) => track.kind === "system"));
   const [source, setSource] = useState<TranscriptSource>(
@@ -135,6 +136,40 @@ export function RecordingDetailTabs({
     choices.find((item) => item.connectionId === transcription?.id && item.model === transcription.model) ??
     choices[0] ??
     null;
+  const aiChoices = useMemo<SummaryChoice[]>(() => {
+    if (!settings) {
+      return [];
+    }
+    const rows: SummaryChoice[] = [];
+    for (const connection of settings.connections) {
+      if (connection.capability !== "ai" || !connection.hasCredential) {
+        continue;
+      }
+      const models =
+        connection.enabledModels.length > 0 ? connection.enabledModels : connection.model ? [connection.model] : [];
+      if (models.length === 0) {
+        rows.push({
+          connectionId: connection.id,
+          model: connection.model,
+          label: connection.displayName,
+        });
+        continue;
+      }
+      for (const model of models) {
+        rows.push({
+          connectionId: connection.id,
+          model,
+          label: `${connection.displayName} · ${providerModelLabel("ai", connection.type, model)}`,
+        });
+      }
+    }
+    return rows;
+  }, [settings]);
+  const selectedAi =
+    aiChoice ??
+    aiChoices.find((item) => item.connectionId === ai?.id && item.model === ai.model) ??
+    aiChoices[0] ??
+    null;
 
   const transcribe = async () => {
     setTranscriptStatus("transcribing");
@@ -162,7 +197,7 @@ export function RecordingDetailTabs({
     setSummaryStatus("loading");
     setSummaryError(null);
     try {
-      const updated = await settingsService.generateSummary(session.id);
+      const updated = await settingsService.generateSummary(session.id, selectedAi?.connectionId, selectedAi?.model);
       onSessionUpdate(updated);
       setSummaryStatus("ready");
     } catch (error) {
@@ -205,6 +240,7 @@ export function RecordingDetailTabs({
         onTranscribe={() => void transcribe()}
         onRestore={(runId) => void restore(runId)}
         onConfigure={() => openSettings("transcription")}
+        onSendToNotion={sendToNotion}
       />
     ),
     summary: (
@@ -214,6 +250,9 @@ export function RecordingDetailTabs({
         configured={aiConfigured}
         hasTranscript={hasTranscript}
         error={summaryError}
+        choices={aiChoices}
+        selected={selectedAi}
+        onSelectChoice={setAiChoice}
         onGenerate={() => void generateSummary()}
         onConfigure={() => openSettings("ai")}
         onSendToNotion={sendToNotion}

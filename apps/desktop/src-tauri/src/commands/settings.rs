@@ -284,11 +284,25 @@ pub fn recorder_restore_transcript(app: AppHandle, id: String, run_id: String) -
 pub async fn recorder_generate_summary(
     app: AppHandle,
     id: String,
+    provider_id: Option<String>,
+    model: Option<String>,
 ) -> Result<RecordingSession, AppError> {
     let settings = settings::read_settings(&app)?;
-    let connection = settings::default_connection(&settings, ProviderCapability::Ai)
-        .cloned()
-        .ok_or_else(|| AppError::msg("Connect an AI provider in Settings."))?;
+    let mut connection = if let Some(provider_id) = provider_id {
+        settings
+            .connections
+            .iter()
+            .find(|item| item.id == provider_id)
+            .cloned()
+            .ok_or_else(|| AppError::msg("AI provider not found."))?
+    } else {
+        settings::default_connection(&settings, ProviderCapability::Ai)
+            .cloned()
+            .ok_or_else(|| AppError::msg("Connect an AI provider in Settings."))?
+    };
+    if let Some(model) = model.filter(|value| !value.trim().is_empty()) {
+        connection.model = model;
+    }
     let key = settings::get_secret(&connection.id, &connection.kind)?
         .ok_or_else(|| AppError::msg("Add an API key for this AI provider."))?;
     let root = storage::recordings_dir(&app)?;

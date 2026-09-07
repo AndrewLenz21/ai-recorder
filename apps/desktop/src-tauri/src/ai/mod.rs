@@ -303,7 +303,7 @@ pub async fn generate_summary(
         base_url,
         api_key,
         &resolve_model(model, None),
-        "You summarize recorded conversations. Write a concise, well-structured summary in plain language. Use short paragraphs. Do not invent details.",
+        "You summarize recorded conversations. Write a concise, well-structured summary in Markdown. Use short headings, paragraphs, and bullet lists when they help. Do not invent details.",
         &format!("Summarize this transcript:\n\n{transcript}"),
     )
     .await

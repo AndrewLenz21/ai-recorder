@@ -122,7 +122,12 @@ export const settingsCommands = {
     }),
   restoreTranscript: (id: string, runId: string) =>
     invokeCommand<RecordingSession>("recorder_restore_transcript", { id, runId }),
-  generateSummary: (id: string) => invokeCommand<RecordingSession>("recorder_generate_summary", { id }),
+  generateSummary: (id: string, providerId?: string | null, model?: string | null) =>
+    invokeCommand<RecordingSession>("recorder_generate_summary", {
+      id,
+      providerId: providerId ?? null,
+      model: model ?? null,
+    }),
   hasSecret: (providerId: string) => invokeCommand<boolean>("credentials_has", { providerId }),
   deleteSecret: (providerId: string) => invokeCommand<void>("credentials_delete", { providerId }),
 };
