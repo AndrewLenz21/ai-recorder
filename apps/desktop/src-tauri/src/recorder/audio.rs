@@ -146,10 +146,6 @@ impl AudioCapture {
         frames.saturating_mul(1000) / u64::from(self.sample_rate.max(1))
     }
 
-    pub fn set_writing(&self, enabled: bool) {
-        self.writing.store(enabled, Ordering::Relaxed);
-    }
-
     pub fn stop(mut self) -> Result<u64, AppError> {
         self.writing.store(false, Ordering::Relaxed);
         let duration_ms = self.duration_ms();
